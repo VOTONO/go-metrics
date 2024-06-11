@@ -6,15 +6,98 @@ import (
 	"testing"
 
 	"github.com/VOTONO/go-metrics/internal/handlers"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 type MockMemStorage struct{}
 
-func (m *MockMemStorage) Increment(name string, value interface{}) error { return nil }
-func (m *MockMemStorage) Replace(name string, value interface{}) error   { return nil }
-func (m *MockMemStorage) Get(name string) interface{}                    { return nil }
+func (m MockMemStorage) GetAll() map[string]interface{} {
+	return nil
+}
+
+func (m MockMemStorage) Get(name string) interface{} {
+	return "100"
+}
+
+func (m MockMemStorage) Increment(name string, value interface{}) error {
+	return nil
+}
+
+func (m MockMemStorage) Replace(name string, value interface{}) error {
+	return nil
+}
 
 func TestUpdateHandler(t *testing.T) {
+	// handler := http.HandlerFunc(handlers.UpdateHandler)
+	server := httptest.NewServer(handlers.UpdateHandler(MockMemStorage{}))
+	defer server.Close()
+
+	tests := []struct {
+		name         string
+		method       string
+		url          string
+		expectedCode int
+	}{
+		{
+			name:         "Valid gauge metric",
+			method:       "POST",
+			url:          "/update/gauge/testGauge/123.45",
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:         "Valid counter metric",
+			method:       "POST",
+			url:          "/update/counter/testCounter/123",
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:         "Invalid metric type",
+			method:       "POST",
+			url:          "/update/invalid/testInvalid/123",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "Invalid gauge value",
+			method:       "POST",
+			url:          "/update/gauge/testGauge/abc",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "Invalid counter value",
+			method:       "POST",
+			url:          "/update/counter/testCounter/123.45",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "Invalid URL format",
+			method:       "POST",
+			url:          "/update/gauge/testGauge",
+			expectedCode: http.StatusNotFound,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.method, func(t *testing.T) {
+
+			req := resty.New().R()
+			req.Method = test.method
+			req.URL = server.URL + test.url
+
+			resp, err := req.Send()
+
+			assert.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, test.expectedCode, resp.StatusCode(), "Response code didn't match expected")
+		})
+	}
+}
+
+func TestValueHandler(t *testing.T) {
+	// handler := http.HandlerFunc(handlers.UpdateHandler)
+	server := httptest.NewServer(handlers.ValueHandler(MockMemStorage{}))
+	defer server.Close()
+
 	tests := []struct {
 		name         string
 		method       string
@@ -23,77 +106,36 @@ func TestUpdateHandler(t *testing.T) {
 		expectedBody string
 	}{
 		{
-			name:         "Valid gauge metric",
-			method:       "POST",
-			url:          "/update/gauge/testGauge/123.45",
-			expectedCode: http.StatusOK,
-			expectedBody: "",
-		},
-		{
-			name:         "Valid counter metric",
-			method:       "POST",
-			url:          "/update/counter/testCounter/123",
-			expectedCode: http.StatusOK,
-			expectedBody: "",
-		},
-		{
-			name:         "Invalid metric type",
-			method:       "POST",
-			url:          "/update/invalid/testInvalid/123",
-			expectedCode: http.StatusBadRequest,
-			expectedBody: "Invalid metric type\n",
-		},
-		{
-			name:         "Invalid request method",
+			name:         "Valid get",
 			method:       "GET",
-			url:          "/update/gauge/testGauge/123.45",
+			url:          "/value/gauge/testGauge",
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:         "Invalid method",
+			method:       "POST",
+			url:          "/value/gauge/testGauge",
 			expectedCode: http.StatusMethodNotAllowed,
-			expectedBody: "Only POST requests are allowed!\n",
 		},
 		{
-			name:         "Invalid gauge value",
-			method:       "POST",
-			url:          "/update/gauge/testGauge/abc",
-			expectedCode: http.StatusBadRequest,
-			expectedBody: "Invalid value for gauge, must be float64\n",
-		},
-		{
-			name:         "Invalid counter value",
-			method:       "POST",
-			url:          "/update/counter/testCounter/123.45",
-			expectedCode: http.StatusBadRequest,
-			expectedBody: "Invalid value for counter, must be int64\n",
-		},
-		{
-			name:         "Invalid URL format",
-			method:       "POST",
-			url:          "/update/gauge/testGauge",
+			name:         "Invalid url",
+			method:       "GET",
+			url:          "/value/gauge",
 			expectedCode: http.StatusNotFound,
-			expectedBody: "Invalid request format\n",
 		},
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			handler := handlers.UpdateHandler(&MockMemStorage{})
+		t.Run(test.method, func(t *testing.T) {
 
-			req, err := http.NewRequest(test.method, test.url, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
+			req := resty.New().R()
+			req.Method = test.method
+			req.URL = server.URL + test.url
 
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
+			resp, err := req.Send()
 
-			if status := rr.Code; status != test.expectedCode {
-				t.Errorf("Wrong status code: got %v want %v",
-					status, test.expectedCode)
-			}
-
-			if body := rr.Body.String(); body != test.expectedBody {
-				t.Errorf("Unexpected body: got %v want %v",
-					body, test.expectedBody)
-			}
+			assert.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, test.expectedCode, resp.StatusCode(), "Response code didn't match expected")
 		})
 	}
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,15 +12,14 @@ import (
 func UpdateHandler(memStorage storage.MetricStorage) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
-			http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-			return
+			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 
 		path := strings.TrimLeft(req.URL.Path, "/")
 		pathParts := strings.Split(path, "/")
 
 		if len(pathParts) != 4 {
-			http.Error(res, "Invalid request format", http.StatusNotFound)
+			http.Error(res, "Bad url", http.StatusNotFound)
 			return
 		}
 
@@ -31,7 +31,7 @@ func UpdateHandler(memStorage storage.MetricStorage) http.HandlerFunc {
 		case "gauge":
 			floatValue, err := strconv.ParseFloat(metricValue, 64)
 			if err != nil {
-				http.Error(res, "Invalid value for gauge, must be float64", http.StatusBadRequest)
+				http.Error(res, "Invalid value", http.StatusBadRequest)
 				return
 			}
 
@@ -42,7 +42,7 @@ func UpdateHandler(memStorage storage.MetricStorage) http.HandlerFunc {
 		case "counter":
 			intValue, err := strconv.ParseInt(metricValue, 10, 64)
 			if err != nil {
-				http.Error(res, "Invalid value for counter, must be int64", http.StatusBadRequest)
+				http.Error(res, "Invalid value", http.StatusBadRequest)
 				return
 			}
 
@@ -54,5 +54,56 @@ func UpdateHandler(memStorage storage.MetricStorage) http.HandlerFunc {
 			http.Error(res, "Invalid metric type", http.StatusBadRequest)
 			return
 		}
+		res.WriteHeader(http.StatusOK)
+	}
+}
+
+func ValueHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+
+		path := strings.TrimLeft(req.URL.Path, "/")
+		pathParts := strings.Split(path, "/")
+
+		if len(pathParts) != 3 {
+			http.Error(res, "Bad url", http.StatusNotFound)
+			return
+		}
+
+		metricName := pathParts[2]
+
+		value := memStorage.Get(metricName)
+
+		if value == nil {
+			http.Error(res, "Metric not found", http.StatusNotFound)
+			return
+		}
+		res.Header().Set("Content-Type", "text/plain")
+		res.Write([]byte(fmt.Sprintf("%v", value)))
+	}
+}
+
+func AllValueHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+
+		if req.URL.Path != "/" {
+			http.Error(res, "Bad url", http.StatusNotFound)
+			return
+		}
+
+		metrics := memStorage.GetAll()
+
+		res.Header().Set("Content-Type", "text/html")
+		res.WriteHeader(http.StatusOK)
+		fmt.Fprintln(res, "<html><body><h1>Metrics</h1><table border='1'><tr><th>Metric</th><th>Value</th></tr>")
+		for key, value := range metrics {
+			fmt.Fprintf(res, "<tr><td>%s</td><td>%v</td></tr>", key, value)
+		}
+		fmt.Fprintln(res, "</table></body></html>")
 	}
 }

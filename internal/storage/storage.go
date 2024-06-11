@@ -8,6 +8,7 @@ type MetricStorage interface {
 	Replace(name string, value interface{}) error
 	Increment(name string, value interface{}) error
 	Get(name string) interface{}
+	GetAll() map[string]interface{}
 }
 
 type MemStorage struct {
@@ -70,9 +71,9 @@ func (m *MemStorage) Increment(name string, value interface{}) error {
 }
 
 func (m *MemStorage) Get(name string) interface{} {
-	val, ok := m.metrics[name]
-	if !ok {
-		return nil
-	}
-	return val
+	return m.metrics[name]
+}
+
+func (m *MemStorage) GetAll() map[string]interface{} {
+	return m.metrics
 }
