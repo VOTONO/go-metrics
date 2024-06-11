@@ -8,20 +8,23 @@ import (
 func TestRequestFor(t *testing.T) {
 	tests := []struct {
 		name          string
+		adress        string
 		metric        Metric
 		expectedURL   string
 		expectedError bool
 	}{
 		{
-			name:        "Valid Counter Metric",
-			metric:      Metric{Name: "PollCount", Type: "counter", Value: 0},
-			expectedURL: "http://localhost:8080/update/PollCount/counter/0",
+			name:          "Valid Counter Metric",
+			adress:        "localhost:8080",
+			metric:        Metric{Name: "PollCount", Type: "counter", Value: 0},
+			expectedURL:   "http://localhost:8080/update/PollCount/counter/0",
+			expectedError: false,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req, err := requestFor(test.metric)
+			req, err := requestFor(test.metric, test.adress)
 			if (err != nil) != test.expectedError {
 				t.Fatalf("expected error: %v, got: %v", test.expectedError, err)
 			}

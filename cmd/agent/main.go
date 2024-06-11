@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -48,8 +49,27 @@ var metrics = map[string]Metric{
 }
 
 func main() {
-	updateTicker := time.NewTicker(2 * time.Second)
-	sendTicker := time.NewTicker(10 * time.Second)
+
+	defaultAddress := &NetAddress{"localhost", 8080}
+	defaultSendInterval := &Interval{10}
+	defaultPollInterval := &Interval{2}
+
+	addr := defaultAddress
+	reportInterval := defaultSendInterval
+	pollInterval := defaultPollInterval
+
+	flag.Var(addr, "a", "Net address host:port")
+	flag.Var(reportInterval, "p", "Metric send interval in seconds")
+	flag.Var(pollInterval, "r", "Metric update interval in seconds")
+
+	flag.Parse()
+
+	fmt.Println("Address:", addr.String())
+	fmt.Println("sendInterval:", reportInterval.String())
+	fmt.Println("pollInterval:", pollInterval.String())
+
+	updateTicker := time.NewTicker(time.Duration(pollInterval.Value) * time.Second)
+	sendTicker := time.NewTicker(time.Duration(reportInterval.Value) * time.Second)
 
 	client := &http.Client{}
 
@@ -61,17 +81,17 @@ func main() {
 
 	go func() {
 		for range sendTicker.C {
-			sendMetrics(client)
+			sendMetrics(client, addr.String())
 		}
 	}()
 
 	select {}
 }
 
-func sendMetrics(client *http.Client) {
+func sendMetrics(client *http.Client, adress string) {
 	for _, metric := range metrics {
 
-		req, err := requestFor(metric)
+		req, err := requestFor(metric, adress)
 		if err != nil {
 			fmt.Printf("Error creating HTTP request for metric %s: %v\n", metric, err)
 			return
@@ -91,8 +111,8 @@ func sendMetrics(client *http.Client) {
 	}
 }
 
-func requestFor(metric Metric) (*http.Request, error) {
-	url := fmt.Sprintf("http://localhost:8080/update/%s/%s/%v", metric.Name, metric.Type, metric.Value)
+func requestFor(metric Metric, adress string) (*http.Request, error) {
+	url := fmt.Sprintf("http://%s/update/%s/%s/%v", adress, metric.Name, metric.Type, metric.Value)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return nil, err
