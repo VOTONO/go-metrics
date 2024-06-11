@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"sync"
 )
 
 type MetricStorage interface {
@@ -13,6 +14,7 @@ type MetricStorage interface {
 
 type MemStorage struct {
 	metrics map[string]interface{}
+	mu      sync.RWMutex
 }
 
 func New(storage map[string]interface{}) *MemStorage {
@@ -25,6 +27,8 @@ func New(storage map[string]interface{}) *MemStorage {
 }
 
 func (m *MemStorage) Replace(name string, value interface{}) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	switch v := value.(type) {
 	case int64:
 		m.metrics[name] = v
@@ -39,6 +43,8 @@ func (m *MemStorage) Replace(name string, value interface{}) error {
 }
 
 func (m *MemStorage) Increment(name string, value interface{}) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	switch v := value.(type) {
 	case int64:
 		if val, ok := m.metrics[name]; ok {
@@ -71,9 +77,13 @@ func (m *MemStorage) Increment(name string, value interface{}) error {
 }
 
 func (m *MemStorage) Get(name string) interface{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.metrics[name]
 }
 
 func (m *MemStorage) GetAll() map[string]interface{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.metrics
 }
