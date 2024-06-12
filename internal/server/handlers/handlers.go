@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VOTONO/go-metrics/internal/storage"
+	"github.com/VOTONO/go-metrics/internal/server/storage"
 )
 
 func UpdateHandler(memStorage storage.MetricStorage) http.HandlerFunc {

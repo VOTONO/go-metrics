@@ -1,29 +1,20 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"net/http"
 
 	"github.com/VOTONO/go-metrics/internal/server"
-	"github.com/VOTONO/go-metrics/internal/storage"
+	"github.com/VOTONO/go-metrics/internal/server/storage"
 )
 
 func main() {
-	defaultAddress := &NetAddress{"localhost", 8080}
-	addr := defaultAddress
+	config := getConfig()
 
-	flag.Var(addr, "a", "Net address host:port")
+	stor := storage.New(nil)
 
-	flag.Parse()
+	httpServer := server.New(stor)
 
-	fmt.Println("Address:", addr.String())
-
-	memStorage := storage.New(nil)
-
-	httpServer := server.New(memStorage)
-
-	err := http.ListenAndServe(addr.String(), httpServer)
+	err := http.ListenAndServe(config.address, httpServer)
 	if err != nil {
 		panic(err)
 	}

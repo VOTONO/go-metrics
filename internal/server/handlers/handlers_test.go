@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/VOTONO/go-metrics/internal/handlers"
+	"github.com/VOTONO/go-metrics/internal/server/handlers"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"

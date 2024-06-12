@@ -3,7 +3,7 @@ package storage_test
 import (
 	"testing"
 
-	"github.com/VOTONO/go-metrics/internal/storage"
+	"github.com/VOTONO/go-metrics/internal/server/storage"
 )
 
 func TestStorage(t *testing.T) {

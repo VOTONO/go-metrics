@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/VOTONO/go-metrics/internal/handlers"
-	"github.com/VOTONO/go-metrics/internal/storage"
+	"github.com/VOTONO/go-metrics/internal/server/handlers"
+	"github.com/VOTONO/go-metrics/internal/server/storage"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
