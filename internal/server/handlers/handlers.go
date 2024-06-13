@@ -3,80 +3,52 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 
+	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/storage"
+
+	"github.com/go-chi/chi/v5"
 )
 
-func UpdateHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+func UpdateHandler(s storage.Storage) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodPost {
-			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+
+		metricType := chi.URLParam(req, "metricType")
+		name := chi.URLParam(req, "metricName")
+		value := chi.URLParam(req, "metricValue")
+
+		fmt.Printf("Received metricType: %s, metricName: %s, metricValue: %s\n", metricType, name, value)
+
+		metric, err := models.New(name, metricType, value)
+
+		if err != nil {
+			if err.Error() == "bad name" {
+				http.Error(res, "Invalide metric name", http.StatusNotFound)
+			} else {
+				http.Error(res, "Invalide metric", http.StatusBadRequest)
+			}
 		}
 
-		path := strings.TrimLeft(req.URL.Path, "/")
-		pathParts := strings.Split(path, "/")
-
-		if len(pathParts) != 4 {
-			http.Error(res, "Bad url", http.StatusNotFound)
-			return
-		}
-
-		metricType := pathParts[1]
-		metricName := pathParts[2]
-		metricValue := pathParts[3]
-
-		switch metricType {
-		case "gauge":
-			floatValue, err := strconv.ParseFloat(metricValue, 64)
-			if err != nil {
-				http.Error(res, "Invalid value", http.StatusBadRequest)
-				return
-			}
-
-			if err := memStorage.Replace(metricName, floatValue); err != nil {
-				http.Error(res, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		case "counter":
-			intValue, err := strconv.ParseInt(metricValue, 10, 64)
-			if err != nil {
-				http.Error(res, "Invalid value", http.StatusBadRequest)
-				return
-			}
-
-			if err := memStorage.Increment(metricName, intValue); err != nil {
-				http.Error(res, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		default:
-			http.Error(res, "Invalid metric type", http.StatusBadRequest)
-			return
+		err = s.Store(metric)
+		if err != nil {
+			http.Error(res, "fail store metric", http.StatusInternalServerError)
 		}
 		res.WriteHeader(http.StatusOK)
 	}
 }
 
-func ValueHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+func ValueHandler(s storage.Storage) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet {
-			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+
+		name := chi.URLParam(req, "metricName")
+
+		if name == "" {
+			http.Error(res, "Invalide metric name", http.StatusNotFound)
 		}
 
-		path := strings.TrimLeft(req.URL.Path, "/")
-		pathParts := strings.Split(path, "/")
+		value, found := s.Get(name)
 
-		if len(pathParts) != 3 {
-			http.Error(res, "Bad url", http.StatusNotFound)
-			return
-		}
-
-		metricName := pathParts[2]
-
-		value := memStorage.Get(metricName)
-
-		if value == nil {
+		if !found {
 			http.Error(res, "Metric not found", http.StatusNotFound)
 			return
 		}
@@ -85,18 +57,15 @@ func ValueHandler(memStorage storage.MetricStorage) http.HandlerFunc {
 	}
 }
 
-func AllValueHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+func AllValueHandler(memStorage storage.Storage) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet {
-			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
-		}
 
 		if req.URL.Path != "/" {
 			http.Error(res, "Bad url", http.StatusNotFound)
 			return
 		}
 
-		metrics := memStorage.GetAll()
+		metrics := memStorage.All()
 
 		res.Header().Set("Content-Type", "text/html")
 		res.WriteHeader(http.StatusOK)

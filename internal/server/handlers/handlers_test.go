@@ -5,33 +5,28 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/VOTONO/go-metrics/internal/server/handlers"
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/router"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 )
 
-type MockMemStorage struct{}
+type MockStorage struct{}
 
-func (m MockMemStorage) GetAll() map[string]interface{} {
+func (m MockStorage) Store(metric models.Metric) error {
 	return nil
 }
 
-func (m MockMemStorage) Get(name string) interface{} {
-	return "100"
+func (m MockStorage) Get(name string) (models.Metric, bool) {
+	return models.Metric{Name: "foo", Type: "gauge", Value: "100"}, true
 }
 
-func (m MockMemStorage) Increment(name string, value interface{}) error {
-	return nil
-}
-
-func (m MockMemStorage) Replace(name string, value interface{}) error {
+func (m MockStorage) All() map[string]models.Metric {
 	return nil
 }
 
 func TestUpdateHandler(t *testing.T) {
-	// handler := http.HandlerFunc(handlers.UpdateHandler)
-	server := httptest.NewServer(handlers.UpdateHandler(MockMemStorage{}))
+	server := httptest.NewServer(router.Router(MockStorage{}))
 	defer server.Close()
 
 	tests := []struct {
@@ -73,29 +68,27 @@ func TestUpdateHandler(t *testing.T) {
 		{
 			name:         "Invalid URL format",
 			method:       "POST",
-			url:          "/update/gauge/testGauge",
+			url:          "/update/gauge/123",
 			expectedCode: http.StatusNotFound,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.method, func(t *testing.T) {
+			req, err := http.NewRequest(test.method, server.URL+test.url, nil)
+			assert.NoError(t, err)
 
-			req := resty.New().R()
-			req.Method = test.method
-			req.URL = server.URL + test.url
-
-			resp, err := req.Send()
+			resp, err := server.Client().Do(req)
+			assert.NoError(t, err)
 
 			assert.NoError(t, err, "Error making HTTP request")
-			assert.Equal(t, test.expectedCode, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, test.expectedCode, resp.StatusCode, "Response code didn't match expected")
 		})
 	}
 }
 
 func TestValueHandler(t *testing.T) {
-	// handler := http.HandlerFunc(handlers.UpdateHandler)
-	server := httptest.NewServer(handlers.ValueHandler(MockMemStorage{}))
+	server := httptest.NewServer(router.Router(MockStorage{}))
 	defer server.Close()
 
 	tests := []struct {
@@ -103,7 +96,6 @@ func TestValueHandler(t *testing.T) {
 		method       string
 		url          string
 		expectedCode int
-		expectedBody string
 	}{
 		{
 			name:         "Valid get",
@@ -127,15 +119,14 @@ func TestValueHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.method, func(t *testing.T) {
+			req, err := http.NewRequest(test.method, server.URL+test.url, nil)
+			assert.NoError(t, err)
 
-			req := resty.New().R()
-			req.Method = test.method
-			req.URL = server.URL + test.url
-
-			resp, err := req.Send()
+			resp, err := server.Client().Do(req)
+			assert.NoError(t, err)
 
 			assert.NoError(t, err, "Error making HTTP request")
-			assert.Equal(t, test.expectedCode, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, test.expectedCode, resp.StatusCode, "Response code didn't match expected")
 		})
 	}
 }

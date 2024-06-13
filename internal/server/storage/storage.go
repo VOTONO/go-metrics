@@ -2,88 +2,61 @@ package storage
 
 import (
 	"fmt"
-	"sync"
+
+	"github.com/VOTONO/go-metrics/internal/models"
 )
 
-type MetricStorage interface {
-	Replace(name string, value interface{}) error
-	Increment(name string, value interface{}) error
-	Get(name string) interface{}
-	GetAll() map[string]interface{}
+type Storage interface {
+	Store(metric models.Metric) error
+	Get(name string) (models.Metric, bool)
+	All() map[string]models.Metric
 }
 
-type MemStorage struct {
-	metrics map[string]interface{}
-	mu      sync.RWMutex
+type StorageImpl struct {
+	metrics map[string]models.Metric
 }
 
-func New(storage map[string]interface{}) *MemStorage {
+func New(storage map[string]models.Metric) *StorageImpl {
 	if storage == nil {
-		storage = make(map[string]interface{})
+		storage = make(map[string]models.Metric)
 	}
-	return &MemStorage{
+	return &StorageImpl{
 		metrics: storage,
 	}
 }
 
-func (m *MemStorage) Replace(name string, value interface{}) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	switch v := value.(type) {
-	case int64:
-		m.metrics[name] = v
-		fmt.Println("Replaced metric", name, "with value", v)
-	case float64:
-		m.metrics[name] = v
-		fmt.Println("Replaced metric", name, "with value", v)
-	default:
-		return fmt.Errorf("unsupported type %T for metric value", value)
-	}
-	return nil
-}
-
-func (m *MemStorage) Increment(name string, value interface{}) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	switch v := value.(type) {
-	case int64:
-		if val, ok := m.metrics[name]; ok {
-			if existingVal, ok := val.(int64); ok {
-				m.metrics[name] = existingVal + v
-				fmt.Println("Incremented metric", name, "by", v)
-			} else {
-				return fmt.Errorf("metric %s value is not int64", name)
-			}
-		} else {
-			m.metrics[name] = v
-			fmt.Println("Added new int64 metric", name, "with value", v)
+func (m *StorageImpl) Store(metric models.Metric) error {
+	switch metric.Type {
+	case "gauge":
+		m.metrics[metric.Name] = metric
+		fmt.Println("Replaced metric", m.metrics[metric.Name], "with", metric)
+		return nil
+	case "counter":
+		if _, found := m.metrics[metric.Name]; !found {
+			m.metrics[metric.Name] = metric
+			return nil
 		}
-	case float64:
-		if val, ok := m.metrics[name]; ok {
-			if existingVal, ok := val.(float64); ok {
-				m.metrics[name] = existingVal + v
-				fmt.Println("Incremented metric", name, "by", v)
-			} else {
-				return fmt.Errorf("metric %s value is not float64", name)
-			}
+
+		oldMetric := m.metrics[metric.Name]
+		newMetric, err := oldMetric.Add(metric)
+		if err != nil {
+			return fmt.Errorf("error adding metric: %e", err)
 		} else {
-			m.metrics[name] = v
-			fmt.Println("Added new float64 metric", name, "with value", v)
+			m.metrics[metric.Name] = newMetric
+			fmt.Printf("Update metric name %s: with value: %v\n", metric.Name, metric.Value)
+			return nil
 		}
+
 	default:
-		return fmt.Errorf("unsupported type %T for metric value", value)
+		return fmt.Errorf("unsupported metric type: %T", metric.Type)
 	}
-	return nil
 }
 
-func (m *MemStorage) Get(name string) interface{} {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.metrics[name]
+func (m *StorageImpl) Get(name string) (models.Metric, bool) {
+	metric, found := m.metrics[name]
+	return metric, found
 }
 
-func (m *MemStorage) GetAll() map[string]interface{} {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (m *StorageImpl) All() map[string]models.Metric {
 	return m.metrics
 }

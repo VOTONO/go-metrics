@@ -3,18 +3,16 @@ package main
 import (
 	"net/http"
 
-	"github.com/VOTONO/go-metrics/internal/server"
+	"github.com/VOTONO/go-metrics/internal/server/router"
 	"github.com/VOTONO/go-metrics/internal/server/storage"
 )
 
 func main() {
 	config := getConfig()
-
 	stor := storage.New(nil)
+	router := router.Router(stor)
 
-	httpServer := server.New(stor)
-
-	err := http.ListenAndServe(config.address, httpServer)
+	err := http.ListenAndServe(config.address, router)
 	if err != nil {
 		panic(err)
 	}
