@@ -1,12 +1,14 @@
 package handlers_test
 
 import (
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/router"
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +28,14 @@ func (m MockStorage) All() map[string]models.Metric {
 }
 
 func TestUpdateHandler(t *testing.T) {
-	server := httptest.NewServer(router.Router(MockStorage{}))
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
+
+	sugar := *logger.Sugar()
+	server := httptest.NewServer(router.Router(MockStorage{}, sugar))
 	defer server.Close()
 
 	tests := []struct {
@@ -74,12 +83,13 @@ func TestUpdateHandler(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.method, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			req, err := http.NewRequest(test.method, server.URL+test.url, nil)
 			assert.NoError(t, err)
 
 			resp, err := server.Client().Do(req)
 			assert.NoError(t, err)
+			defer resp.Body.Close()
 
 			assert.NoError(t, err, "Error making HTTP request")
 			assert.Equal(t, test.expectedCode, resp.StatusCode, "Response code didn't match expected")
@@ -88,7 +98,14 @@ func TestUpdateHandler(t *testing.T) {
 }
 
 func TestValueHandler(t *testing.T) {
-	server := httptest.NewServer(router.Router(MockStorage{}))
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
+
+	sugar := *logger.Sugar()
+	server := httptest.NewServer(router.Router(MockStorage{}, sugar))
 	defer server.Close()
 
 	tests := []struct {
@@ -118,12 +135,13 @@ func TestValueHandler(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.method, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			req, err := http.NewRequest(test.method, server.URL+test.url, nil)
 			assert.NoError(t, err)
 
 			resp, err := server.Client().Do(req)
 			assert.NoError(t, err)
+			defer resp.Body.Close()
 
 			assert.NoError(t, err, "Error making HTTP request")
 			assert.Equal(t, test.expectedCode, resp.StatusCode, "Response code didn't match expected")
