@@ -16,7 +16,7 @@ func Router(s storage.Storage, zap zap.SugaredLogger) chi.Router {
 	router.Use(middleware.Recoverer)
 
 	router.Get("/", handlers.AllValueHandler(s))
-	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogger(handlers.UpdateHandler(s), zap))
-	router.Get("/value/{metricType}/{metricName}", handlers.ValueHandler(s))
+	router.Post("/update", logger.WithLogger(handlers.UpdateHandler(s), zap))
+	router.Get("/value", handlers.ValueHandler(s))
 	return router
 }

@@ -2,61 +2,70 @@ package storage
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 type Storage interface {
-	Store(metric models.Metric) error
-	Get(name string) (models.Metric, bool)
+	Store(metric models.Metric) (*models.Metric, error)
+	Get(ID string) (models.Metric, bool)
 	All() map[string]models.Metric
 }
 
 type StorageImpl struct {
+	mu      sync.RWMutex
 	metrics map[string]models.Metric
 }
 
-func New(storage map[string]models.Metric) *StorageImpl {
-	if storage == nil {
-		storage = make(map[string]models.Metric)
+func New(initialStorage map[string]models.Metric) *StorageImpl {
+	if initialStorage == nil {
+		initialStorage = make(map[string]models.Metric)
 	}
 	return &StorageImpl{
-		metrics: storage,
+		metrics: initialStorage,
 	}
 }
 
-func (m *StorageImpl) Store(metric models.Metric) error {
-	switch metric.Type {
+func (s *StorageImpl) Store(metric models.Metric) (*models.Metric, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	switch metric.MType {
 	case "gauge":
-		m.metrics[metric.Name] = metric
-		fmt.Println("Replaced metric", m.metrics[metric.Name], "with", metric)
-		return nil
+		s.metrics[metric.ID] = metric
+		return &metric, nil
 	case "counter":
-		if _, found := m.metrics[metric.Name]; !found {
-			m.metrics[metric.Name] = metric
-			return nil
+		if existingMetric, found := s.metrics[metric.ID]; found {
+			if existingMetric.Delta != nil && metric.Delta != nil {
+				*existingMetric.Delta += *metric.Delta
+				s.metrics[metric.ID] = existingMetric
+				return &existingMetric, nil
+			}
+			return nil, fmt.Errorf("existing or new metric delta is nil (existing: %v, new: %v)", existingMetric.Delta, metric.Delta)
 		}
-
-		oldMetric := m.metrics[metric.Name]
-		newMetric, err := oldMetric.Add(metric)
-		if err != nil {
-			return fmt.Errorf("error adding metric: %e", err)
-		} else {
-			m.metrics[metric.Name] = newMetric
-			fmt.Printf("Update metric name %s: with value: %v\n", metric.Name, metric.Value)
-			return nil
-		}
-
+		s.metrics[metric.ID] = metric
+		return &metric, nil
 	default:
-		return fmt.Errorf("unsupported metric type: %T", metric.Type)
+		return nil, fmt.Errorf("unsupported metric type: %s", metric.MType)
 	}
 }
 
-func (m *StorageImpl) Get(name string) (models.Metric, bool) {
-	metric, found := m.metrics[name]
+func (s *StorageImpl) Get(ID string) (models.Metric, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	metric, found := s.metrics[ID]
 	return metric, found
 }
 
-func (m *StorageImpl) All() map[string]models.Metric {
-	return m.metrics
+func (s *StorageImpl) All() map[string]models.Metric {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	metricsCopy := make(map[string]models.Metric)
+	for k, v := range s.metrics {
+		metricsCopy[k] = v
+	}
+	return metricsCopy
 }

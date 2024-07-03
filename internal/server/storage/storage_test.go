@@ -7,42 +7,45 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/storage"
 )
 
+func float64Ptr(v float64) *float64 { return &v }
+func int64Ptr(v int64) *int64       { return &v }
+
 func TestStorage(t *testing.T) {
 	tests := []struct {
 		name           string
 		initialStorage map[string]models.Metric
 		metricToStore  models.Metric
-		metricToGet    models.Metric
+		expectedMetric models.Metric
 	}{
 		{
 			name:           "Store gauge on empty storage",
 			initialStorage: make(map[string]models.Metric),
-			metricToStore:  models.Metric{Name: "foo", Type: "gauge", Value: "100"},
-			metricToGet:    models.Metric{Name: "foo", Type: "gauge", Value: "100"},
+			metricToStore:  models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(100)},
+			expectedMetric: models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(100)},
 		},
 		{
 			name:           "Store counter on empty storage",
 			initialStorage: make(map[string]models.Metric),
-			metricToStore:  models.Metric{Name: "foo", Type: "counter", Value: "100"},
-			metricToGet:    models.Metric{Name: "foo", Type: "counter", Value: "100"},
+			metricToStore:  models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(100)},
+			expectedMetric: models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(100)},
 		},
 		{
-			name:           "Replace existing",
-			initialStorage: map[string]models.Metric{"foo": {Name: "foo", Type: "gauge", Value: "100"}},
-			metricToStore:  models.Metric{Name: "foo", Type: "gauge", Value: "100"},
-			metricToGet:    models.Metric{Name: "foo", Type: "gauge", Value: "100"},
+			name:           "Replace existing gauge",
+			initialStorage: map[string]models.Metric{"foo": {ID: "foo", MType: "gauge", Value: float64Ptr(100)}},
+			metricToStore:  models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(200)},
+			expectedMetric: models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(200)},
 		},
 		{
 			name:           "Store counter type with existing value int64",
-			initialStorage: map[string]models.Metric{"foo": {Name: "foo", Type: "counter", Value: "100"}},
-			metricToStore:  models.Metric{Name: "foo", Type: "counter", Value: "100"},
-			metricToGet:    models.Metric{Name: "foo", Type: "counter", Value: "200"},
+			initialStorage: map[string]models.Metric{"foo": {ID: "foo", MType: "counter", Delta: int64Ptr(100)}},
+			metricToStore:  models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(100)},
+			expectedMetric: models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(200)},
 		},
 		{
 			name:           "Store counter type with existing value float64",
-			initialStorage: map[string]models.Metric{"foo": {Name: "foo", Type: "counter", Value: "1.5"}},
-			metricToStore:  models.Metric{Name: "foo", Type: "counter", Value: "1.5"},
-			metricToGet:    models.Metric{Name: "foo", Type: "counter", Value: "3"},
+			initialStorage: map[string]models.Metric{"foo": {ID: "foo", MType: "counter", Delta: int64Ptr(150)}},
+			metricToStore:  models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(150)},
+			expectedMetric: models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(300)},
 		},
 	}
 
@@ -50,20 +53,39 @@ func TestStorage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			stor := storage.New(test.initialStorage)
 
-			err := stor.Store(test.metricToStore)
+			_, err := stor.Store(test.metricToStore)
 			if err != nil {
 				t.Fatalf("returned an unexpected error: %v", err)
 			}
 
-			metric, exist := stor.Get(test.metricToGet.Name)
-
+			metric, exist := stor.Get(test.metricToStore.ID)
 			if !exist {
 				t.Errorf("expected metric not found")
 			}
 
-			if metric != test.metricToGet {
-				t.Errorf("Expected value to be %v, got %v", test.metricToGet, metric)
+			if !compareMetrics(metric, test.expectedMetric) {
+				t.Errorf("Expected value to be %v, got %v", test.expectedMetric, metric)
 			}
 		})
 	}
+}
+
+func compareMetrics(a, b models.Metric) bool {
+	if a.ID != b.ID || a.MType != b.MType {
+		return false
+	}
+
+	if a.Delta != nil && b.Delta != nil && *a.Delta != *b.Delta {
+		return false
+	} else if a.Delta != b.Delta {
+		return false
+	}
+
+	if a.Value != nil && b.Value != nil && *a.Value != *b.Value {
+		return false
+	} else if a.Value != b.Value {
+		return false
+	}
+
+	return true
 }

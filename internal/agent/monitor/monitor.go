@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"fmt"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -9,10 +8,10 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
-var count = 0
+var count = int64(0)
 
 var metrics = map[string]models.Metric{
-	"PollCount":     {Name: "PollCount", Type: "counter", Value: "0"},
+	"PollCount":     {},
 	"RandomValue":   {},
 	"Alloc":         {},
 	"BuckHashSys":   {},
@@ -47,8 +46,17 @@ var stats runtime.MemStats
 
 func Read() map[string]models.Metric {
 	count++
-	metrics["PollCount"] = models.Metric{Name: "RandomValue", Type: "gauge", Value: fmt.Sprintf("%v", count)}
-	metrics["RandomValue"] = models.Metric{Name: "RandomValue", Type: "gauge", Value: fmt.Sprintf("%v", rand.Intn(100))}
+	metrics["PollCount"] = models.Metric{
+		ID:    "PollCount",
+		MType: "counter",
+		Delta: &count,
+	}
+	random := rand.Float64()
+	metrics["RandomValue"] = models.Metric{
+		ID:    "RandomValue",
+		MType: "gauge",
+		Value: &random,
+	}
 
 	runtime.ReadMemStats(&stats)
 
@@ -56,10 +64,28 @@ func Read() map[string]models.Metric {
 	typ := reflect.TypeOf(stats)
 
 	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
 		name := typ.Field(i).Name
+
 		if _, found := metrics[name]; found {
-			value := val.Field(i).Interface()
-			metrics[name] = models.Metric{Name: name, Type: "gauge", Value: fmt.Sprintf("%v", value)}
+			var value float64
+
+			switch field.Kind() {
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				value = float64(field.Uint())
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				value = float64(field.Int())
+			case reflect.Float32, reflect.Float64:
+				value = field.Float()
+			default:
+				continue
+			}
+
+			metrics[name] = models.Metric{
+				ID:    name,
+				MType: "gauge",
+				Value: &value,
+			}
 		}
 	}
 

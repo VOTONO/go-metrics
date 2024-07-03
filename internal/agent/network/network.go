@@ -1,6 +1,8 @@
 package network
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -38,26 +40,24 @@ func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
 				"Fail build request",
 				"metric", metric,
 			)
-			return fmt.Errorf("error creating HTTP request for metric %s: %v", metric.Name, err)
+			return fmt.Errorf("error creating HTTP request for metric %s: %v", metric.ID, err)
 		}
 
 		resp, err := sender.Client.Do(req)
 		if err != nil {
 			sender.Logger.Errorw(
-				"Fail send",
+				"Fail send request",
 				"metric ", metric,
 			)
-			return fmt.Errorf("error sending HTTP request for metric %s: %v", metric.Name, err)
+			return fmt.Errorf("error sending HTTP request for metric %s: %v", metric.ID, err)
 		}
 
-		sender.Logger.Infow(
-			"Metric sended",
-			"request ", req,
-			"response", resp,
-		)
-
 		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("request for metric %s failed with status code %d", metric.Name, resp.StatusCode)
+			sender.Logger.Errorw(
+				"Bad response",
+				"code ", resp.StatusCode,
+			)
+			return fmt.Errorf("request for metric %s failed with status code %d", metric.ID, resp.StatusCode)
 		}
 
 		resp.Body.Close()
@@ -67,11 +67,19 @@ func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
 
 // Build an HTTP request for a metric.
 func (sender *NetworkImpl) BuildRequest(metric models.Metric) (*http.Request, error) {
-	url := fmt.Sprintf("http://%s/update/%s/%s/%v", sender.Address, metric.Type, metric.Name, metric.Value)
-	req, err := http.NewRequest("POST", url, nil)
+	url := fmt.Sprintf("http://%s/update", sender.Address)
+
+	body, err := json.Marshal(metric)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "text/plain")
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
 	return req, nil
 }
