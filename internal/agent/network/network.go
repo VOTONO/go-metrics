@@ -2,6 +2,7 @@ package network
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -39,6 +40,7 @@ func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
 			sender.Logger.Errorw(
 				"Fail build request",
 				"metric", metric,
+				"error", err,
 			)
 			return fmt.Errorf("error creating HTTP request for metric %s: %v", metric.ID, err)
 		}
@@ -48,6 +50,7 @@ func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
 			sender.Logger.Errorw(
 				"Fail send request",
 				"metric ", metric,
+				"error", err,
 			)
 			return fmt.Errorf("error sending HTTP request for metric %s: %v", metric.ID, err)
 		}
@@ -67,19 +70,44 @@ func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
 
 // Build an HTTP request for a metric.
 func (sender *NetworkImpl) BuildRequest(metric models.Metric) (*http.Request, error) {
-	url := fmt.Sprintf("http://%s/update", sender.Address)
+	url := fmt.Sprintf("http://%s/update/", sender.Address)
 
 	body, err := json.Marshal(metric)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	compressedBody, err := compress(body)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(compressedBody))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	sender.Logger.Infow(
+		"Success build request",
+		"method", req.Method,
+		"headers", req.Header,
+	)
 
 	return req, nil
+}
+
+func compress(b []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(b); err != nil {
+		return nil, err
+	}
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

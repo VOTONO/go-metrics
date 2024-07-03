@@ -77,13 +77,13 @@ func compareMetrics(a, b models.Metric) bool {
 
 	if a.Delta != nil && b.Delta != nil && *a.Delta != *b.Delta {
 		return false
-	} else if a.Delta != b.Delta {
+	} else if (a.Delta != nil && b.Delta == nil) || (a.Delta == nil && b.Delta != nil) {
 		return false
 	}
 
 	if a.Value != nil && b.Value != nil && *a.Value != *b.Value {
 		return false
-	} else if a.Value != b.Value {
+	} else if (a.Value != nil && b.Value == nil) || (a.Value == nil && b.Value != nil) {
 		return false
 	}
 

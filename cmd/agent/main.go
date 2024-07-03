@@ -28,8 +28,6 @@ func main() {
 
 	readTicker := time.NewTicker(time.Duration(config.pollInterval) * time.Second)
 	sendTicker := time.NewTicker(time.Duration(config.reportInterval) * time.Second)
-	defer readTicker.Stop()
-	defer sendTicker.Stop()
 
 	net := network.New(&http.Client{}, config.address, sugar)
 	stor := storage.New(map[string]models.Metric{})
@@ -39,6 +37,10 @@ func main() {
 
 	for {
 		select {
+		case <-stop:
+			readTicker.Stop()
+			sendTicker.Stop()
+			return
 		case <-readTicker.C:
 			metrics := monitor.Read()
 			stor.Set(metrics)
