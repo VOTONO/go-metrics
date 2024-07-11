@@ -1,6 +1,8 @@
 package storage_test
 
 import (
+	"go.uber.org/zap"
+	"log"
 	"testing"
 
 	"github.com/VOTONO/go-metrics/internal/models"
@@ -51,9 +53,15 @@ func TestStorage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stor := storage.New(test.initialStorage)
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				log.Fatalf("can't initialize zap logger: %v", err)
+			}
+			defer logger.Sync()
+			zapLogger := *logger.Sugar()
+			stor := storage.New(test.initialStorage, zapLogger)
 
-			_, err := stor.Store(test.metricToStore)
+			_, err = stor.Store(test.metricToStore)
 			if err != nil {
 				t.Fatalf("returned an unexpected error: %v", err)
 			}

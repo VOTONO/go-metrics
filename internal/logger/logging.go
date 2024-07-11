@@ -30,7 +30,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func WithLogger(h http.Handler, s zap.SugaredLogger) http.HandlerFunc {
+func WithLogger(h http.Handler, s *zap.SugaredLogger) http.HandlerFunc {
 	logFn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 

@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func Router(s storage.Storage, zap zap.SugaredLogger) chi.Router {
+func Router(s storage.MetricStorer, shouldSyncWriteToFile bool, filePath string, zap *zap.SugaredLogger) chi.Router {
 	router := chi.NewRouter()
 
 	router.Use(middleware.Recoverer)
@@ -19,9 +19,9 @@ func Router(s storage.Storage, zap zap.SugaredLogger) chi.Router {
 	router.Use(compressor.Decompressor)
 
 	router.Get("/", logger.WithLogger(handlers.AllValueHandler(s), zap))
-	router.Post("/update/", logger.WithLogger(handlers.UpdateHandlerJSON(s), zap))
+	router.Post("/update/", logger.WithLogger(handlers.UpdateHandlerJSON(s, zap, shouldSyncWriteToFile, filePath), zap))
 	router.Post("/value/", logger.WithLogger(handlers.ValueHandlerJSON(s), zap))
-	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogger(handlers.UpdateHandler(s), zap))
+	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogger(handlers.UpdateHandler(s, zap, shouldSyncWriteToFile, filePath), zap))
 	router.Get("/value/{metricType}/{metricName}", handlers.ValueHandler(s))
 	return router
 }

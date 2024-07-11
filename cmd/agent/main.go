@@ -11,8 +11,6 @@ import (
 	"github.com/VOTONO/go-metrics/internal/agent/monitor"
 	"github.com/VOTONO/go-metrics/internal/agent/network"
 	"github.com/VOTONO/go-metrics/internal/agent/storage"
-	"github.com/VOTONO/go-metrics/internal/models"
-
 	"go.uber.org/zap"
 )
 
@@ -30,7 +28,7 @@ func main() {
 	sendTicker := time.NewTicker(time.Duration(config.reportInterval) * time.Second)
 
 	net := network.New(&http.Client{}, config.address, sugar)
-	stor := storage.New(map[string]models.Metric{})
+	stor := storage.New()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

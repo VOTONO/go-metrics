@@ -9,11 +9,14 @@ import (
 	"strconv"
 
 	"github.com/VOTONO/go-metrics/internal/models"
+	fileworker "github.com/VOTONO/go-metrics/internal/server/fileWorker"
 	"github.com/VOTONO/go-metrics/internal/server/storage"
+
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
-func UpdateHandlerJSON(s storage.Storage) http.HandlerFunc {
+func UpdateHandlerJSON(s storage.MetricStorer, zap *zap.SugaredLogger, shouldSyncWriteToFile bool, filePath string) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metric models.Metric
 		var buf bytes.Buffer
@@ -40,6 +43,10 @@ func UpdateHandlerJSON(s storage.Storage) http.HandlerFunc {
 			http.Error(res, "fail store metric", http.StatusInternalServerError)
 		}
 
+		if shouldSyncWriteToFile {
+			fileworker.Write(filePath, *stored, zap)
+		}
+
 		out, err := json.Marshal(stored)
 		if err != nil {
 			log.Fatal(err)
@@ -51,7 +58,7 @@ func UpdateHandlerJSON(s storage.Storage) http.HandlerFunc {
 	}
 }
 
-func ValueHandlerJSON(s storage.Storage) http.HandlerFunc {
+func ValueHandlerJSON(s storage.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metric models.Metric
 		var buf bytes.Buffer
@@ -86,7 +93,7 @@ func ValueHandlerJSON(s storage.Storage) http.HandlerFunc {
 	}
 }
 
-func UpdateHandler(s storage.Storage) http.HandlerFunc {
+func UpdateHandler(s storage.MetricStorer, zap *zap.SugaredLogger, shouldSyncWriteToFile bool, filePath string) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 
 		metricType := chi.URLParam(req, "metricType")
@@ -131,15 +138,19 @@ func UpdateHandler(s storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		_, err = s.Store(metric)
+		stored, err := s.Store(metric)
 		if err != nil {
 			http.Error(res, "fail store metric", http.StatusInternalServerError)
+		}
+
+		if shouldSyncWriteToFile {
+			fileworker.Write(filePath, *stored, zap)
 		}
 		res.WriteHeader(http.StatusOK)
 	}
 }
 
-func ValueHandler(s storage.Storage) http.HandlerFunc {
+func ValueHandler(s storage.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 
 		name := chi.URLParam(req, "metricName")
@@ -166,7 +177,7 @@ func ValueHandler(s storage.Storage) http.HandlerFunc {
 	}
 }
 
-func AllValueHandler(memStorage storage.Storage) http.HandlerFunc {
+func AllValueHandler(s storage.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 
 		if req.URL.Path != "/" {
@@ -174,7 +185,7 @@ func AllValueHandler(memStorage storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		metrics := memStorage.All()
+		metrics := s.All()
 
 		res.Header().Set("Content-Type", "text/html")
 		res.WriteHeader(http.StatusOK)

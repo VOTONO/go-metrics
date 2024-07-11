@@ -68,7 +68,7 @@ func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
 	return nil
 }
 
-// Build an HTTP request for a metric.
+// BuildRequest  for a metric.
 func (sender *NetworkImpl) BuildRequest(metric models.Metric) (*http.Request, error) {
 	url := fmt.Sprintf("http://%s/update/", sender.Address)
 
@@ -90,12 +90,6 @@ func (sender *NetworkImpl) BuildRequest(metric models.Metric) (*http.Request, er
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
-
-	sender.Logger.Infow(
-		"Success build request",
-		"method", req.Method,
-		"headers", req.Header,
-	)
 
 	return req, nil
 }

@@ -37,8 +37,8 @@ func TestUpdateHandlerJSON(t *testing.T) {
 	}
 	defer logger.Sync()
 
-	sugar := *logger.Sugar()
-	server := httptest.NewServer(router.Router(MockStorage{}, sugar))
+	zapLogger := *logger.Sugar()
+	server := httptest.NewServer(router.Router(MockStorage{}, false, "", &zapLogger))
 	defer server.Close()
 
 	tests := []struct {
@@ -110,8 +110,8 @@ func TestValueHandlerJSON(t *testing.T) {
 	}
 	defer logger.Sync()
 
-	sugar := *logger.Sugar()
-	server := httptest.NewServer(router.Router(MockStorage{}, sugar))
+	zapLogger := *logger.Sugar()
+	server := httptest.NewServer(router.Router(MockStorage{}, false, "", &zapLogger))
 	defer server.Close()
 
 	tests := []struct {
@@ -161,8 +161,8 @@ func TestUpdateHandler(t *testing.T) {
 	}
 	defer logger.Sync()
 
-	sugar := *logger.Sugar()
-	server := httptest.NewServer(router.Router(MockStorage{}, sugar))
+	zapLogger := *logger.Sugar()
+	server := httptest.NewServer(router.Router(MockStorage{}, false, "", &zapLogger))
 	defer server.Close()
 
 	tests := []struct {
@@ -231,8 +231,8 @@ func TestValueHandler(t *testing.T) {
 	}
 	defer logger.Sync()
 
-	sugar := *logger.Sugar()
-	server := httptest.NewServer(router.Router(MockStorage{}, sugar))
+	zapLogger := *logger.Sugar()
+	server := httptest.NewServer(router.Router(MockStorage{}, false, "", &zapLogger))
 	defer server.Close()
 
 	tests := []struct {
