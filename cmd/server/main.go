@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/router"
 	"github.com/VOTONO/go-metrics/internal/server/storage"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +27,15 @@ func main() {
 
 	zapLogger := *logger.Sugar()
 	config := getConfig()
+
+	db, err := sql.Open("pgx", config.dbAdress)
+	if err != nil {
+		zapLogger.Errorw(
+			"Fail open db",
+			"address", config.dbAdress,
+		)
+	}
+	defer db.Close()
 
 	var initialMetrics map[string]models.Metric
 
@@ -39,12 +50,13 @@ func main() {
 		}
 	}
 	shouldSyncWriteToFile := config.storeInterval == 0
-	stor := storage.New(initialMetrics, zapLogger)
+	stor := storage.New(initialMetrics, db, zapLogger)
 	rout := router.Router(stor, shouldSyncWriteToFile, config.fileStoragePath, &zapLogger)
 
 	zapLogger.Infow(
 		"Starting server",
 		"address", config.address,
+		"dbAdress", config.dbAdress,
 		"fileStoragePath", config.fileStoragePath,
 		"storeInterval", config.storeInterval,
 		"restore", config.restore,

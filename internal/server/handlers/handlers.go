@@ -203,6 +203,19 @@ func AllValueHandler(s storage.MetricStorer) http.HandlerFunc {
 	}
 }
 
+func Ping(s storage.MetricStorer) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		err := s.Ping()
+
+		if err != nil {
+			http.Error(res, "No connection to db", http.StatusInternalServerError)
+			return
+		}
+
+		res.WriteHeader(http.StatusOK)
+	}
+}
+
 func extractValue(m models.Metric) (string, error) {
 	var value string
 

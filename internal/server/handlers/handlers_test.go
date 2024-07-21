@@ -30,6 +30,10 @@ func (m MockStorage) All() map[string]models.Metric {
 	return nil
 }
 
+func (m MockStorage) Ping() error {
+	return nil
+}
+
 func TestUpdateHandlerJSON(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {

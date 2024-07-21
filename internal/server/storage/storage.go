@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"go.uber.org/zap"
 	"sync"
+	"time"
 
 	"github.com/VOTONO/go-metrics/internal/models"
 )
@@ -12,20 +15,23 @@ type MetricStorer interface {
 	Store(metric models.Metric) (*models.Metric, error)
 	Get(ID string) (models.Metric, bool)
 	All() map[string]models.Metric
+	Ping() error
 }
 
 type MetricStorerImpl struct {
 	mu      sync.RWMutex
+	db      *sql.DB
 	zap     zap.SugaredLogger
 	metrics map[string]models.Metric
 }
 
-func New(initialStorage map[string]models.Metric, zap zap.SugaredLogger) *MetricStorerImpl {
+func New(initialStorage map[string]models.Metric, db *sql.DB, zap zap.SugaredLogger) *MetricStorerImpl {
 	if initialStorage == nil {
 		initialStorage = make(map[string]models.Metric)
 	}
 	return &MetricStorerImpl{
 		metrics: initialStorage,
+		db:      db,
 		zap:     zap,
 	}
 }
@@ -94,4 +100,10 @@ func (s *MetricStorerImpl) All() map[string]models.Metric {
 		"metrics", metricsCopy,
 	)
 	return metricsCopy
+}
+
+func (s *MetricStorerImpl) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	return s.db.PingContext(ctx)
 }

@@ -1,12 +1,13 @@
 package storage_test
 
 import (
-	"go.uber.org/zap"
 	"log"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/storage"
+	"go.uber.org/zap"
 )
 
 func float64Ptr(v float64) *float64 { return &v }
@@ -53,13 +54,23 @@ func TestStorage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			// Initialize zap logger
 			logger, err := zap.NewDevelopment()
 			if err != nil {
 				log.Fatalf("can't initialize zap logger: %v", err)
 			}
 			defer logger.Sync()
 			zapLogger := *logger.Sugar()
-			stor := storage.New(test.initialStorage, zapLogger)
+
+			// Initialize sqlmock
+			db, _, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("failed to create sqlmock: %v", err)
+			}
+			defer db.Close()
+
+			// Create storage with mocked db
+			stor := storage.New(test.initialStorage, db, zapLogger)
 
 			_, err = stor.Store(test.metricToStore)
 			if err != nil {
@@ -72,7 +83,7 @@ func TestStorage(t *testing.T) {
 			}
 
 			if !compareMetrics(metric, test.expectedMetric) {
-				t.Errorf("Expected value to be %v, got %v", test.expectedMetric, metric)
+				t.Errorf("expected value to be %v, got %v", test.expectedMetric, metric)
 			}
 		})
 	}
