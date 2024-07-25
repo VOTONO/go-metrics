@@ -1,25 +1,21 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
+	"github.com/VOTONO/go-metrics/internal/server/router"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/VOTONO/go-metrics/internal/models"
-	fileworker "github.com/VOTONO/go-metrics/internal/server/fileWorker"
-	"github.com/VOTONO/go-metrics/internal/server/router"
-	"github.com/VOTONO/go-metrics/internal/server/storage"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"go.uber.org/zap"
 )
 
 func main() {
-	logger, err := zap.NewDevelopment()
+	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
@@ -28,84 +24,60 @@ func main() {
 	zapLogger := *logger.Sugar()
 	config := getConfig()
 
-	db, err := sql.Open("pgx", config.dbAdress)
+	db, err := sql.Open("pgx", config.dbAddress)
 	if err != nil {
 		zapLogger.Errorw(
 			"Fail open db",
-			"address", config.dbAdress,
+			"address", config.dbAddress,
 		)
+		return
 	}
 	defer db.Close()
 
-	var initialMetrics map[string]models.Metric
-
-	if config.restore {
-		restoredMetrics, err := fileworker.Read(config.fileStoragePath, &zapLogger)
-		initialMetrics = restoredMetrics
-		if err != nil {
-			zapLogger.Errorw(
-				"Fail read metrics from file",
-				"path", config.fileStoragePath,
-			)
-		}
-	}
 	shouldSyncWriteToFile := config.storeInterval == 0
-	stor := storage.New(initialMetrics, db, zapLogger)
-	rout := router.Router(stor, shouldSyncWriteToFile, config.fileStoragePath, &zapLogger)
+	storer := repo.New(config.restore, config.fileStoragePath, config.storeInterval, db, &zapLogger)
+	rout := router.Router(storer, shouldSyncWriteToFile, config.fileStoragePath, &zapLogger)
 
 	zapLogger.Infow(
 		"Starting server",
 		"address", config.address,
-		"dbAdress", config.dbAdress,
+		"dbAddress", config.dbAddress,
 		"fileStoragePath", config.fileStoragePath,
 		"storeInterval", config.storeInterval,
 		"restore", config.restore,
 	)
 
+	httpServer := &http.Server{
+		Addr:    config.address,
+		Handler: rout,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGKILL)
+	defer stop()
+
 	go func() {
-		er := http.ListenAndServe(config.address, rout)
-		if er != nil {
+		<-ctx.Done()
+		zapLogger.Infow("Shutting down server")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+		repo.Write(config.fileStoragePath, storer.All(), &zapLogger)
+		defer cancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			zapLogger.Errorw(
-				"Fail start server",
-				"error", er,
+				"Server shutdown failed",
+				"error", err,
 			)
+		} else {
+			zapLogger.Infow("Server gracefully stopped")
 		}
 	}()
 
-	if !shouldSyncWriteToFile && config.fileStoragePath != "" {
-		storeTicker := time.NewTicker(time.Duration(config.storeInterval) * time.Second)
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	repo.StartWriting(ctx, storer, &zapLogger, config.storeInterval, config.fileStoragePath)
 
-		for {
-			select {
-			case <-stop:
-				metrics := stor.All()
-				for _, metric := range metrics {
-					err := fileworker.Write(config.fileStoragePath, metric, &zapLogger)
-
-					if err != nil {
-						zapLogger.Errorw(
-							"Fail write metrics to file",
-							"path", config.fileStoragePath,
-							"error", err,
-						)
-					}
-				}
-				storeTicker.Stop()
-				return
-			case <-storeTicker.C:
-				metrics := stor.All()
-				for _, metric := range metrics {
-					err := fileworker.Write(config.fileStoragePath, metric, &zapLogger)
-					if err != nil {
-						zapLogger.Errorw(
-							"Fail write metrics to file",
-							"path", config.fileStoragePath,
-							"error", err)
-					}
-				}
-			}
-		}
+	if err := httpServer.ListenAndServe(); err != nil {
+		zapLogger.Errorw(
+			"Fail start server",
+			"error", err,
+		)
 	}
 }

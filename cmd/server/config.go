@@ -2,13 +2,22 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 )
 
+const (
+	defaultAddress         = "localhost:8080"
+	defaultDBAddress       = "localhost:5432"
+	defaultStoreInterval   = 300
+	defaultFileStoragePath = "/tmp/metrics-db.json"
+	defaultRestore         = true
+)
+
 type Config struct {
 	address         string
-	dbAdress        string
+	dbAddress       string
 	storeInterval   int
 	fileStoragePath string
 	restore         bool
@@ -16,24 +25,24 @@ type Config struct {
 
 func getConfig() Config {
 	config := Config{
-		address:         "localhost:8080",
-		dbAdress:        "localhost:5432",
-		storeInterval:   300,
-		fileStoragePath: "/tmp/metrics-db.json",
-		restore:         true,
+		address:         defaultAddress,
+		dbAddress:       defaultDBAddress,
+		storeInterval:   defaultStoreInterval,
+		fileStoragePath: defaultFileStoragePath,
+		restore:         defaultRestore,
 	}
 
 	// Parse flags
-	addressFlag := flag.String("a", config.address, "Address to bind to (default: localhost:8080)")
-	dbAdressFlag := flag.String("d", config.dbAdress, "Address to bind db (default: localhost:5432)")
-	storeIntervalFlag := flag.Int("i", config.storeInterval, "Store interval in seconds (default: 300)")
-	fileStoragePathFlag := flag.String("f", config.fileStoragePath, "File storage path (default: /tmp/metrics-db.json)")
-	restoreFlag := flag.Bool("r", config.restore, "Restore from file storage (default: true)")
+	addressFlag := flag.String("a", config.address, fmt.Sprintf("Address to bind to (default: %s)", defaultAddress))
+	dbAddressFlag := flag.String("d", config.dbAddress, fmt.Sprintf("Address to bind db (default: %s)", defaultDBAddress))
+	storeIntervalFlag := flag.Int("i", config.storeInterval, fmt.Sprintf("Store interval in seconds (default: %d)", defaultStoreInterval))
+	fileStoragePathFlag := flag.String("f", config.fileStoragePath, fmt.Sprintf("File storage path (default: %s)", defaultFileStoragePath))
+	restoreFlag := flag.Bool("r", config.restore, fmt.Sprintf("Restore from file storage (default: %t)", defaultRestore))
 	flag.Parse()
 
 	// Override with command-line flags if provided
 	config.address = *addressFlag
-	config.dbAdress = *dbAdressFlag
+	config.dbAddress = *dbAddressFlag
 	config.storeInterval = *storeIntervalFlag
 	config.fileStoragePath = *fileStoragePathFlag
 	config.restore = *restoreFlag
@@ -43,7 +52,7 @@ func getConfig() Config {
 		config.address = address
 	}
 	if dbAddress, ok := os.LookupEnv("DATABASE_DSN"); ok {
-		config.dbAdress = dbAddress
+		config.dbAddress = dbAddress
 	}
 	if storeInterval, ok := os.LookupEnv("STORE_INTERVAL"); ok {
 		if i, err := strconv.Atoi(storeInterval); err == nil {

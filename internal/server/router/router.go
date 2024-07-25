@@ -4,14 +4,14 @@ import (
 	"github.com/VOTONO/go-metrics/internal/compressor"
 	"github.com/VOTONO/go-metrics/internal/logger"
 	"github.com/VOTONO/go-metrics/internal/server/handlers"
-	"github.com/VOTONO/go-metrics/internal/server/storage"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
-func Router(s storage.MetricStorer, shouldSyncWriteToFile bool, filePath string, zap *zap.SugaredLogger) chi.Router {
+func Router(s repo.MetricStorer, shouldSyncWriteToFile bool, filePath string, zap *zap.SugaredLogger) chi.Router {
 	router := chi.NewRouter()
 
 	router.Use(middleware.Recoverer)
