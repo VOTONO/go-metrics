@@ -1,109 +1,243 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/VOTONO/go-metrics/internal/models"
+	fileworker "github.com/VOTONO/go-metrics/internal/server/fileWorker"
 	"github.com/VOTONO/go-metrics/internal/server/storage"
+
+	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
-func UpdateHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+func UpdateHandlerJSON(s storage.MetricStorer, zap *zap.SugaredLogger, shouldSyncWriteToFile bool, filePath string) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodPost {
-			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
-		}
+		var metric models.Metric
+		var buf bytes.Buffer
 
-		path := strings.TrimLeft(req.URL.Path, "/")
-		pathParts := strings.Split(path, "/")
-
-		if len(pathParts) != 4 {
-			http.Error(res, "Bad url", http.StatusNotFound)
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		metricType := pathParts[1]
-		metricName := pathParts[2]
-		metricValue := pathParts[3]
+		if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		valid := validateMetric(metric)
+		if !valid {
+			http.Error(res, "invalid metric", http.StatusBadRequest)
+			return
+		}
+
+		stored, err := s.Store(metric)
+		if err != nil {
+			http.Error(res, "fail store metric", http.StatusInternalServerError)
+		}
+
+		if shouldSyncWriteToFile {
+			fileworker.Write(filePath, *stored, zap)
+		}
+
+		out, err := json.Marshal(stored)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		res.Header().Set("Content-Type", "application/json")
+		res.WriteHeader(http.StatusOK)
+		res.Write(out)
+	}
+}
+
+func ValueHandlerJSON(s storage.MetricStorer) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		var metric models.Metric
+		var buf bytes.Buffer
+
+		_, err := buf.ReadFrom(req.Body)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		value, found := s.Get(metric.ID)
+
+		if !found {
+			http.Error(res, "Metric not found", http.StatusNotFound)
+			return
+		}
+
+		out, err := json.Marshal(value)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		res.Header().Set("Content-Type", "application/json")
+		res.WriteHeader(http.StatusOK)
+		res.Write(out)
+	}
+}
+
+func UpdateHandler(s storage.MetricStorer, zap *zap.SugaredLogger, shouldSyncWriteToFile bool, filePath string) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+
+		metricType := chi.URLParam(req, "metricType")
+		name := chi.URLParam(req, "metricName")
+		value := chi.URLParam(req, "metricValue")
+
+		var metric models.Metric
+		var err error
 
 		switch metricType {
 		case "gauge":
-			floatValue, err := strconv.ParseFloat(metricValue, 64)
+			var v float64
+			v, err = strconv.ParseFloat(value, 64)
 			if err != nil {
-				http.Error(res, "Invalid value", http.StatusBadRequest)
+				http.Error(res, "Invalid metric value", http.StatusBadRequest)
 				return
 			}
-
-			if err := memStorage.Replace(metricName, floatValue); err != nil {
-				http.Error(res, err.Error(), http.StatusInternalServerError)
-				return
+			metric = models.Metric{
+				ID:    name,
+				MType: metricType,
+				Value: &v,
 			}
 		case "counter":
-			intValue, err := strconv.ParseInt(metricValue, 10, 64)
+			var v int64
+			v, err = strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				http.Error(res, "Invalid value", http.StatusBadRequest)
+				http.Error(res, "Invalid metric delta", http.StatusBadRequest)
 				return
 			}
-
-			if err := memStorage.Increment(metricName, intValue); err != nil {
-				http.Error(res, err.Error(), http.StatusInternalServerError)
-				return
+			metric = models.Metric{
+				ID:    name,
+				MType: metricType,
+				Delta: &v,
 			}
 		default:
 			http.Error(res, "Invalid metric type", http.StatusBadRequest)
 			return
 		}
+
+		if err != nil {
+			http.Error(res, "Invalid metric value", http.StatusBadRequest)
+			return
+		}
+
+		stored, err := s.Store(metric)
+		if err != nil {
+			http.Error(res, "fail store metric", http.StatusInternalServerError)
+		}
+
+		if shouldSyncWriteToFile {
+			fileworker.Write(filePath, *stored, zap)
+		}
 		res.WriteHeader(http.StatusOK)
 	}
 }
 
-func ValueHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+func ValueHandler(s storage.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet {
-			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+
+		name := chi.URLParam(req, "metricName")
+
+		if name == "" {
+			http.Error(res, "Invalide metric name", http.StatusNotFound)
 		}
 
-		path := strings.TrimLeft(req.URL.Path, "/")
-		pathParts := strings.Split(path, "/")
+		metric, found := s.Get(name)
 
-		if len(pathParts) != 3 {
-			http.Error(res, "Bad url", http.StatusNotFound)
-			return
-		}
-
-		metricName := pathParts[2]
-
-		value := memStorage.Get(metricName)
-
-		if value == nil {
+		if !found {
 			http.Error(res, "Metric not found", http.StatusNotFound)
 			return
 		}
+
+		value, err := extractValue(metric)
+
+		if err != nil {
+			http.Error(res, "Invalid metric value", http.StatusInternalServerError)
+		}
+
 		res.Header().Set("Content-Type", "text/plain")
 		res.Write([]byte(fmt.Sprintf("%v", value)))
 	}
 }
 
-func AllValueHandler(memStorage storage.MetricStorage) http.HandlerFunc {
+func AllValueHandler(s storage.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodGet {
-			http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
-		}
 
 		if req.URL.Path != "/" {
 			http.Error(res, "Bad url", http.StatusNotFound)
 			return
 		}
 
-		metrics := memStorage.GetAll()
+		metrics := s.All()
 
 		res.Header().Set("Content-Type", "text/html")
 		res.WriteHeader(http.StatusOK)
 		fmt.Fprintln(res, "<html><body><h1>Metrics</h1><table border='1'><tr><th>Metric</th><th>Value</th></tr>")
-		for key, value := range metrics {
+		for key, metric := range metrics {
+			value, err := extractValue(metric)
+
+			if err != nil {
+				http.Error(res, "Invalid metric value", http.StatusInternalServerError)
+			}
+
 			fmt.Fprintf(res, "<tr><td>%s</td><td>%v</td></tr>", key, value)
 		}
 		fmt.Fprintln(res, "</table></body></html>")
+	}
+}
+
+func extractValue(m models.Metric) (string, error) {
+	var value string
+
+	switch m.MType {
+	case "gauge":
+		if m.Value != nil {
+			value = strconv.FormatFloat(*m.Value, 'f', -1, 64)
+		} else {
+			return "", fmt.Errorf("metric value not found")
+		}
+	case "counter":
+		if m.Delta != nil {
+			value = strconv.FormatInt(*m.Delta, 10)
+		} else {
+			return "", fmt.Errorf("metric delta not found")
+		}
+	default:
+		return "", fmt.Errorf("unknown metric type")
+	}
+	return value, nil
+}
+
+func validateMetric(m models.Metric) bool {
+	switch m.MType {
+	case "gauge":
+		if m.Value == nil {
+			return false
+		}
+		return true
+	case "counter":
+		if m.Delta == nil {
+			return false
+		}
+		return true
+	default:
+		return false
 	}
 }

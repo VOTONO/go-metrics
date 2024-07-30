@@ -21,7 +21,6 @@ func getConfig() Config {
 	config.pollInterval = 2
 	config.reportInterval = 10
 
-	// Override with environment variables if they exist
 	if address, ok := os.LookupEnv("ADDRESS"); ok {
 		config.address = address
 	}
@@ -44,8 +43,8 @@ func getConfig() Config {
 
 	// Parse flags
 	addressFlag := flag.String("a", config.address, "Address to bind to (default: localhost:8080)")
-	pollIntervalFlag := flag.Int("p", config.pollInterval, "Poll interval in seconds (default: 10)")
-	reportIntervalFlag := flag.Int("r", config.reportInterval, "Report interval in seconds (default: 60)")
+	pollIntervalFlag := flag.Int("p", config.pollInterval, "Poll interval in seconds (default: 2)")
+	reportIntervalFlag := flag.Int("r", config.reportInterval, "Report interval in seconds (default: 10)")
 	flag.Parse()
 
 	// Override with command-line flags if provided

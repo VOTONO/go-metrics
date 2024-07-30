@@ -2,88 +2,96 @@ package storage
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"sync"
+
+	"github.com/VOTONO/go-metrics/internal/models"
 )
 
-type MetricStorage interface {
-	Replace(name string, value interface{}) error
-	Increment(name string, value interface{}) error
-	Get(name string) interface{}
-	GetAll() map[string]interface{}
+type MetricStorer interface {
+	Store(metric models.Metric) (*models.Metric, error)
+	Get(ID string) (models.Metric, bool)
+	All() map[string]models.Metric
 }
 
-type MemStorage struct {
-	metrics map[string]interface{}
+type MetricStorerImpl struct {
 	mu      sync.RWMutex
+	zap     zap.SugaredLogger
+	metrics map[string]models.Metric
 }
 
-func New(storage map[string]interface{}) *MemStorage {
-	if storage == nil {
-		storage = make(map[string]interface{})
+func New(initialStorage map[string]models.Metric, zap zap.SugaredLogger) *MetricStorerImpl {
+	if initialStorage == nil {
+		initialStorage = make(map[string]models.Metric)
 	}
-	return &MemStorage{
-		metrics: storage,
+	return &MetricStorerImpl{
+		metrics: initialStorage,
+		zap:     zap,
 	}
 }
 
-func (m *MemStorage) Replace(name string, value interface{}) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	switch v := value.(type) {
-	case int64:
-		m.metrics[name] = v
-		fmt.Println("Replaced metric", name, "with value", v)
-	case float64:
-		m.metrics[name] = v
-		fmt.Println("Replaced metric", name, "with value", v)
-	default:
-		return fmt.Errorf("unsupported type %T for metric value", value)
-	}
-	return nil
-}
+func (s *MetricStorerImpl) Store(metric models.Metric) (*models.Metric, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-func (m *MemStorage) Increment(name string, value interface{}) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	switch v := value.(type) {
-	case int64:
-		if val, ok := m.metrics[name]; ok {
-			if existingVal, ok := val.(int64); ok {
-				m.metrics[name] = existingVal + v
-				fmt.Println("Incremented metric", name, "by", v)
-			} else {
-				return fmt.Errorf("metric %s value is not int64", name)
+	switch metric.MType {
+	case "gauge":
+		s.metrics[metric.ID] = metric
+		s.zap.Infow(
+			"new stored metric",
+			"metric_id", metric.ID,
+			"metric_type", metric.MType,
+			"metric_value", metric.Value,
+		)
+		return &metric, nil
+	case "counter":
+		if existingMetric, found := s.metrics[metric.ID]; found {
+			if existingMetric.Delta != nil && metric.Delta != nil {
+				*existingMetric.Delta += *metric.Delta
+				s.metrics[metric.ID] = existingMetric
+				s.zap.Infow(
+					"updated metric",
+					"metric_id", existingMetric.ID,
+					"metric_type", existingMetric.MType,
+					"metric_delta", existingMetric.Delta,
+				)
+				return &existingMetric, nil
 			}
-		} else {
-			m.metrics[name] = v
-			fmt.Println("Added new int64 metric", name, "with value", v)
+			s.zap.Errorw("existing or new metric delta is nil (existing: %v, new: %v)", existingMetric.Delta, metric.Delta)
+			return nil, fmt.Errorf("existing or new metric delta is nil (existing: %v, new: %v)", existingMetric.Delta, metric.Delta)
 		}
-	case float64:
-		if val, ok := m.metrics[name]; ok {
-			if existingVal, ok := val.(float64); ok {
-				m.metrics[name] = existingVal + v
-				fmt.Println("Incremented metric", name, "by", v)
-			} else {
-				return fmt.Errorf("metric %s value is not float64", name)
-			}
-		} else {
-			m.metrics[name] = v
-			fmt.Println("Added new float64 metric", name, "with value", v)
-		}
+		s.metrics[metric.ID] = metric
+		return &metric, nil
 	default:
-		return fmt.Errorf("unsupported type %T for metric value", value)
+		s.zap.Errorw("unsupported metric type: %s", metric.MType)
+		return nil, fmt.Errorf("unsupported metric type: %s", metric.MType)
 	}
-	return nil
 }
 
-func (m *MemStorage) Get(name string) interface{} {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.metrics[name]
+func (s *MetricStorerImpl) Get(ID string) (models.Metric, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	metric, found := s.metrics[ID]
+	s.zap.Infow(
+		"get metric",
+		"found", found,
+		"metric_id", ID,
+	)
+	return metric, found
 }
 
-func (m *MemStorage) GetAll() map[string]interface{} {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.metrics
+func (s *MetricStorerImpl) All() map[string]models.Metric {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	metricsCopy := make(map[string]models.Metric)
+	for k, v := range s.metrics {
+		metricsCopy[k] = v
+	}
+	s.zap.Infow(
+		"all metrics",
+		"metrics", metricsCopy,
+	)
+	return metricsCopy
 }

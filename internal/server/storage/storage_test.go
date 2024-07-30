@@ -1,90 +1,99 @@
 package storage_test
 
 import (
+	"go.uber.org/zap"
+	"log"
 	"testing"
 
+	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/storage"
 )
+
+func float64Ptr(v float64) *float64 { return &v }
+func int64Ptr(v int64) *int64       { return &v }
 
 func TestStorage(t *testing.T) {
 	tests := []struct {
 		name           string
-		method         string
-		initialStorage map[string]interface{}
-		keyToStore     string
-		valueToStore   interface{}
-		expectedValue  interface{}
+		initialStorage map[string]models.Metric
+		metricToStore  models.Metric
+		expectedMetric models.Metric
 	}{
 		{
-			name:           "Replace on empty storage",
-			method:         "Replace",
-			initialStorage: make(map[string]interface{}),
-			keyToStore:     "key",
-			valueToStore:   int64(100),
-			expectedValue:  int64(100),
+			name:           "Store gauge on empty storage",
+			initialStorage: make(map[string]models.Metric),
+			metricToStore:  models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(100)},
+			expectedMetric: models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(100)},
 		},
 		{
-			name:           "Increment on empty storage",
-			method:         "Increment",
-			initialStorage: make(map[string]interface{}),
-			keyToStore:     "key",
-			valueToStore:   int64(100),
-			expectedValue:  int64(100),
+			name:           "Store counter on empty storage",
+			initialStorage: make(map[string]models.Metric),
+			metricToStore:  models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(100)},
+			expectedMetric: models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(100)},
 		},
 		{
-			name:           "Replace existing",
-			method:         "Replace",
-			initialStorage: map[string]interface{}{"key": int64(50)},
-			keyToStore:     "key",
-			valueToStore:   int64(100),
-			expectedValue:  int64(100),
+			name:           "Replace existing gauge",
+			initialStorage: map[string]models.Metric{"foo": {ID: "foo", MType: "gauge", Value: float64Ptr(100)}},
+			metricToStore:  models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(200)},
+			expectedMetric: models.Metric{ID: "foo", MType: "gauge", Value: float64Ptr(200)},
 		},
 		{
-			name:           "Increment existing int64",
-			method:         "Increment",
-			initialStorage: map[string]interface{}{"key": int64(100)},
-			keyToStore:     "key",
-			valueToStore:   int64(100),
-			expectedValue:  int64(200),
+			name:           "Store counter type with existing value int64",
+			initialStorage: map[string]models.Metric{"foo": {ID: "foo", MType: "counter", Delta: int64Ptr(100)}},
+			metricToStore:  models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(100)},
+			expectedMetric: models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(200)},
 		},
 		{
-			name:           "Increment existing float64",
-			method:         "Increment",
-			initialStorage: map[string]interface{}{"key": float64(1.5)},
-			keyToStore:     "key",
-			valueToStore:   float64(1.5),
-			expectedValue:  float64(3.0),
+			name:           "Store counter type with existing value float64",
+			initialStorage: map[string]models.Metric{"foo": {ID: "foo", MType: "counter", Delta: int64Ptr(150)}},
+			metricToStore:  models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(150)},
+			expectedMetric: models.Metric{ID: "foo", MType: "counter", Delta: int64Ptr(300)},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			memStorage := storage.New(test.initialStorage)
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				log.Fatalf("can't initialize zap logger: %v", err)
+			}
+			defer logger.Sync()
+			zapLogger := *logger.Sugar()
+			stor := storage.New(test.initialStorage, zapLogger)
 
-			switch test.method {
-			case "Replace":
-				err := memStorage.Replace(test.keyToStore, test.valueToStore)
-				if err != nil {
-					t.Fatalf("Replace returned an unexpected error: %v", err)
-				}
+			_, err = stor.Store(test.metricToStore)
+			if err != nil {
+				t.Fatalf("returned an unexpected error: %v", err)
+			}
 
-				got := memStorage.Get(test.keyToStore)
+			metric, exist := stor.Get(test.metricToStore.ID)
+			if !exist {
+				t.Errorf("expected metric not found")
+			}
 
-				if got != test.expectedValue {
-					t.Errorf("Expected value to be %v, got %v", test.expectedValue, got)
-				}
-			case "Increment":
-				err := memStorage.Increment(test.keyToStore, test.valueToStore)
-				if err != nil {
-					t.Fatalf("Replace returned an unexpected error: %v", err)
-				}
-
-				got := memStorage.Get(test.keyToStore)
-
-				if got != test.expectedValue {
-					t.Errorf("Expected value to be %v, got %v", test.expectedValue, got)
-				}
+			if !compareMetrics(metric, test.expectedMetric) {
+				t.Errorf("Expected value to be %v, got %v", test.expectedMetric, metric)
 			}
 		})
 	}
+}
+
+func compareMetrics(a, b models.Metric) bool {
+	if a.ID != b.ID || a.MType != b.MType {
+		return false
+	}
+
+	if a.Delta != nil && b.Delta != nil && *a.Delta != *b.Delta {
+		return false
+	} else if (a.Delta != nil && b.Delta == nil) || (a.Delta == nil && b.Delta != nil) {
+		return false
+	}
+
+	if a.Value != nil && b.Value != nil && *a.Value != *b.Value {
+		return false
+	} else if (a.Value != nil && b.Value == nil) || (a.Value == nil && b.Value != nil) {
+		return false
+	}
+
+	return true
 }
