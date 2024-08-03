@@ -35,7 +35,7 @@ func main() {
 	defer db.Close()
 
 	shouldSyncWriteToFile := config.storeInterval == 0
-	storer := repo.New(config.restore, config.fileStoragePath, config.storeInterval, db, &zapLogger)
+	storer := initStorer(&zapLogger, config.restore, config.fileStoragePath, config.storeInterval)
 	rout := router.Router(storer, shouldSyncWriteToFile, config.fileStoragePath, &zapLogger)
 
 	zapLogger.Infow(
@@ -60,7 +60,15 @@ func main() {
 		zapLogger.Infow("Shutting down server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
-		repo.Write(config.fileStoragePath, storer.All(), &zapLogger)
+		metrics, err := storer.All()
+		if err != nil {
+			zapLogger.Errorw(
+				"failed get metrics from storage before writing to file",
+				"filePath", config.fileStoragePath,
+				"err", err.Error())
+			return
+		}
+		repo.RewriteFile(config.fileStoragePath, metrics, &zapLogger)
 		defer cancel()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			zapLogger.Errorw(
@@ -80,4 +88,12 @@ func main() {
 			"error", err,
 		)
 	}
+}
+
+func initStorer(logger *zap.SugaredLogger, restore bool, filePath string, storeInterval int) repo.MetricStorer {
+	if storeInterval == 0 {
+		return repo.NewFileMetricStorer(filePath, logger)
+	}
+
+	return repo.NewLocalMetricStorer(restore, filePath, logger)
 }

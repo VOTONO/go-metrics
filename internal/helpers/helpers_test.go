@@ -102,3 +102,69 @@ func TestValidateMetric(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateCounterMetric(t *testing.T) {
+	tests := []struct {
+		name    string
+		old     models.Metric
+		new     models.Metric
+		want    models.Metric
+		wantErr bool
+	}{
+		{
+			name:    "Valid counter metric update",
+			old:     models.Metric{ID: "metric1", MType: "counter", Delta: int64Ptr(10)},
+			new:     models.Metric{ID: "metric1", MType: "counter", Delta: int64Ptr(5)},
+			want:    models.Metric{ID: "metric1", MType: "counter", Delta: int64Ptr(15)},
+			wantErr: false,
+		},
+		{
+			name:    "Metric type mismatch",
+			old:     models.Metric{ID: "metric2", MType: "counter", Delta: int64Ptr(10)},
+			new:     models.Metric{ID: "metric2", MType: "gauge", Value: float64Ptr(123.45)},
+			want:    models.Metric{ID: "metric2", MType: "counter", Delta: int64Ptr(10)},
+			wantErr: true,
+		},
+		{
+			name:    "Old delta is nil",
+			old:     models.Metric{ID: "metric3", MType: "counter", Delta: nil},
+			new:     models.Metric{ID: "metric3", MType: "counter", Delta: int64Ptr(5)},
+			want:    models.Metric{ID: "metric3", MType: "counter", Delta: nil},
+			wantErr: true,
+		},
+		{
+			name:    "New delta is nil",
+			old:     models.Metric{ID: "metric4", MType: "counter", Delta: int64Ptr(10)},
+			new:     models.Metric{ID: "metric4", MType: "counter", Delta: nil},
+			want:    models.Metric{ID: "metric4", MType: "counter", Delta: int64Ptr(10)},
+			wantErr: true,
+		},
+		{
+			name:    "Both deltas are nil",
+			old:     models.Metric{ID: "metric5", MType: "counter", Delta: nil},
+			new:     models.Metric{ID: "metric5", MType: "counter", Delta: nil},
+			want:    models.Metric{ID: "metric5", MType: "counter", Delta: nil},
+			wantErr: true,
+		},
+		{
+			name:    "Different names",
+			old:     models.Metric{ID: "old", MType: "counter", Delta: nil},
+			new:     models.Metric{ID: "new", MType: "counter", Delta: nil},
+			want:    models.Metric{ID: "metric5", MType: "counter", Delta: nil},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := UpdateCounterMetric(tt.old, tt.new)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdateCounterMetric() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.ID != tt.want.ID || got.MType != tt.want.MType || (got.Delta == nil && tt.want.Delta != nil) || (got.Delta != nil && tt.want.Delta == nil) || (got.Delta != nil && tt.want.Delta != nil && *got.Delta != *tt.want.Delta) || (got.Value == nil && tt.want.Value != nil) || (got.Value != nil && tt.want.Value == nil) || (got.Value != nil && tt.want.Value != nil && *got.Value != *tt.want.Value) {
+				t.Errorf("UpdateCounterMetric() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -15,7 +15,11 @@ func AllValueHandler(s repo.MetricStorer) http.HandlerFunc {
 			return
 		}
 
-		metrics := s.All()
+		metrics, err := s.All()
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+		}
 
 		res.Header().Set("Content-Type", "text/html")
 		res.WriteHeader(http.StatusOK)

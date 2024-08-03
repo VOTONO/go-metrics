@@ -66,19 +66,19 @@ func TestRead(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "Read existing file",
+			name:    "ReadFile existing file",
 			args:    tmpFile.Name(),
 			want:    metrics,
 			wantErr: false,
 		},
 		{
-			name:    "Read non-existent file",
+			name:    "ReadFile non-existent file",
 			args:    "non_existent_file.json",
 			want:    map[string]models.Metric{},
 			wantErr: false,
 		},
 		{
-			name:    "Read invalid file",
+			name:    "ReadFile invalid file",
 			args:    createTempFile(t, []byte("invalid content")).Name(),
 			want:    nil,
 			wantErr: true,
@@ -87,13 +87,13 @@ func TestRead(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Read(tt.args, logger)
+			got, err := ReadFile(tt.args, logger)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Read() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ReadFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Read() got = %v, want %v", got, tt.want)
+				t.Errorf("ReadFile() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -125,13 +125,13 @@ func TestWrite(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "Write valid metrics",
+			name:    "RewriteFile valid metrics",
 			args:    tmpFile.Name(),
 			metrics: metrics,
 			wantErr: false,
 		},
 		{
-			name:    "Write to invalid file",
+			name:    "RewriteFile to invalid file",
 			args:    "/invalid_path/metrics.json",
 			metrics: metrics,
 			wantErr: true,
@@ -140,18 +140,18 @@ func TestWrite(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := Write(tt.args, tt.metrics, logger); (err != nil) != tt.wantErr {
-				t.Errorf("Write() error = %v, wantErr %v", err, tt.wantErr)
+			if err := RewriteFile(tt.args, tt.metrics, logger); (err != nil) != tt.wantErr {
+				t.Errorf("RewriteFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr {
-				got, err := Read(tt.args, logger)
+				got, err := ReadFile(tt.args, logger)
 				if err != nil {
-					t.Errorf("Read() error = %v", err)
+					t.Errorf("ReadFile() error = %v", err)
 					return
 				}
 				if !reflect.DeepEqual(got, tt.metrics) {
-					t.Errorf("Write() got = %v, want %v", got, tt.metrics)
+					t.Errorf("RewriteFile() got = %v, want %v", got, tt.metrics)
 				}
 			}
 		})

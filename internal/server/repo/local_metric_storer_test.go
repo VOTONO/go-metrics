@@ -1,7 +1,6 @@
 package repo_test
 
 import (
-	"database/sql"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"go.uber.org/zap"
@@ -12,8 +11,8 @@ import (
 func float64Ptr(v float64) *float64 { return &v }
 func int64Ptr(v int64) *int64       { return &v }
 
-// Helper function to create a new MetricStorerImpl instance with the given initial storage.
-func newMetricStorerImpl(initialMetrics map[string]models.Metric) *repo.MetricStorerImpl {
+// Helper function to create a new LocalMetricStorerImpl instance with the given initial storage.
+func newMetricStorerImpl(initialMetrics map[string]models.Metric) *repo.LocalMetricStorerImpl {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
@@ -21,7 +20,7 @@ func newMetricStorerImpl(initialMetrics map[string]models.Metric) *repo.MetricSt
 	defer logger.Sync()
 	zapLogger := *logger.Sugar()
 
-	return repo.New(false, "", 0, &sql.DB{}, &zapLogger)
+	return repo.NewLocalMetricStorer(false, "", &zapLogger)
 }
 
 func TestStoreGauge(t *testing.T) {
