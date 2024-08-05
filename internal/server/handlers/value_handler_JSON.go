@@ -24,14 +24,14 @@ func ValueHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
 			return
 		}
 
-		value, found := s.Get(metric.ID)
+		storedMetric, found := s.Get(metric.ID)
 
 		if !found {
 			http.Error(res, "Metric not found", http.StatusNotFound)
 			return
 		}
 
-		out, err := json.Marshal(value)
+		out, err := json.Marshal(storedMetric)
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return

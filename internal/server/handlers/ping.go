@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"github.com/VOTONO/go-metrics/internal/server/repo"
+	"database/sql"
 	"net/http"
 )
 
-func Ping(s repo.MetricStorer) http.HandlerFunc {
+func Ping(db *sql.DB) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		err := s.Ping()
+		err := db.Ping()
 
 		if err != nil {
 			http.Error(res, "No connection to db", http.StatusInternalServerError)

@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"fmt"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"go.uber.org/zap"
@@ -24,16 +25,15 @@ func (s *FileMetricStorerImpl) Store(newMetric models.Metric) (*models.Metric, e
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	metrics, err := ReadFile(s.filePath, s.zapLogger)
-
-	if err != nil {
-		return &models.Metric{}, err
+	valid := helpers.ValidateMetric(newMetric)
+	if !valid {
+		return &models.Metric{}, fmt.Errorf("invalide metric")
 	}
 
-	updatedMetric, err := helpers.UpdateMetricInMap(&metrics, newMetric, s.zapLogger)
+	updatedMetric, err := AddToFile(s.filePath, newMetric, s.zapLogger)
 
 	if err != nil {
-		return &models.Metric{}, err
+		return nil, err
 	}
 
 	helpers.LogMetric("new stored Metric", updatedMetric, s.zapLogger)

@@ -4,11 +4,10 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 	"net/http"
 )
 
-func UpdateHandler(s repo.MetricStorer, zap *zap.SugaredLogger, shouldSyncWriteToFile bool, filePath string) http.HandlerFunc {
+func UpdateHandler(s repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 
 		metricType := chi.URLParam(req, "metricType")

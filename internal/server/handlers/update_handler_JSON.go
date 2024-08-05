@@ -6,12 +6,11 @@ import (
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
 )
 
-func UpdateHandlerJSON(s repo.MetricStorer, zap *zap.SugaredLogger, shouldSyncWriteToFile bool, filePath string) http.HandlerFunc {
+func UpdateHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metric models.Metric
 		var buf bytes.Buffer

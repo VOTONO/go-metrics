@@ -34,9 +34,8 @@ func main() {
 	}
 	defer db.Close()
 
-	shouldSyncWriteToFile := config.storeInterval == 0
 	storer := initStorer(&zapLogger, config.restore, config.fileStoragePath, config.storeInterval)
-	rout := router.Router(storer, shouldSyncWriteToFile, config.fileStoragePath, &zapLogger)
+	rout := router.Router(storer, db, &zapLogger)
 
 	zapLogger.Infow(
 		"Starting server",
@@ -59,6 +58,7 @@ func main() {
 		<-ctx.Done()
 		zapLogger.Infow("Shutting down server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		metrics, err := storer.All()
 		if err != nil {
@@ -66,10 +66,11 @@ func main() {
 				"failed get metrics from storage before writing to file",
 				"filePath", config.fileStoragePath,
 				"err", err.Error())
-			return
+			// Ensure the server shutdown is attempted even if there's an error retrieving metrics
+		} else {
+			repo.RewriteFile(config.fileStoragePath, metrics, &zapLogger)
 		}
-		repo.RewriteFile(config.fileStoragePath, metrics, &zapLogger)
-		defer cancel()
+
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			zapLogger.Errorw(
 				"Server shutdown failed",
@@ -82,7 +83,7 @@ func main() {
 
 	repo.StartWriting(ctx, storer, &zapLogger, config.storeInterval, config.fileStoragePath)
 
-	if err := httpServer.ListenAndServe(); err != nil {
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		zapLogger.Errorw(
 			"Fail start server",
 			"error", err,

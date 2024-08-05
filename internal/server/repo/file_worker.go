@@ -64,6 +64,8 @@ func AddToFile(file string, metric models.Metric, logger *zap.SugaredLogger) (mo
 		return models.Metric{}, err
 	}
 
+	RewriteFile(file, metrics, logger)
+
 	return updated, nil
 }
 
