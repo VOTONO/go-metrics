@@ -24,24 +24,17 @@ func main() {
 	zapLogger := *logger.Sugar()
 	config := getConfig()
 
-	db, err := sql.Open("pgx", config.dbAddress)
+	storer, db, err := createStorer(&zapLogger, config)
 	if err != nil {
-		zapLogger.Errorw(
-			"Fail open db",
-			"address", config.dbAddress,
-		)
-		return
+		log.Fatalf("can't initialize metric storer: %v", err)
 	}
 	defer db.Close()
-
-	shouldSyncWriteToFile := config.storeInterval == 0
-	storer := initStorer(&zapLogger, config.restore, config.fileStoragePath, config.storeInterval)
-	rout := router.Router(storer, shouldSyncWriteToFile, config.fileStoragePath, &zapLogger)
+	rout := router.Router(storer, db, &zapLogger)
 
 	zapLogger.Infow(
 		"Starting server",
 		"address", config.address,
-		"dbAddress", config.dbAddress,
+		"DSN", config.DSN,
 		"fileStoragePath", config.fileStoragePath,
 		"storeInterval", config.storeInterval,
 		"restore", config.restore,
@@ -59,6 +52,7 @@ func main() {
 		<-ctx.Done()
 		zapLogger.Infow("Shutting down server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		metrics, err := storer.All()
 		if err != nil {
@@ -66,10 +60,11 @@ func main() {
 				"failed get metrics from storage before writing to file",
 				"filePath", config.fileStoragePath,
 				"err", err.Error())
-			return
+			// Ensure the server shutdown is attempted even if there's an error retrieving metrics
+		} else {
+			repo.RewriteFile(config.fileStoragePath, metrics, &zapLogger)
 		}
-		repo.RewriteFile(config.fileStoragePath, metrics, &zapLogger)
-		defer cancel()
+
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			zapLogger.Errorw(
 				"Server shutdown failed",
@@ -82,7 +77,7 @@ func main() {
 
 	repo.StartWriting(ctx, storer, &zapLogger, config.storeInterval, config.fileStoragePath)
 
-	if err := httpServer.ListenAndServe(); err != nil {
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		zapLogger.Errorw(
 			"Fail start server",
 			"error", err,
@@ -90,10 +85,30 @@ func main() {
 	}
 }
 
-func initStorer(logger *zap.SugaredLogger, restore bool, filePath string, storeInterval int) repo.MetricStorer {
-	if storeInterval == 0 {
-		return repo.NewFileMetricStorer(filePath, logger)
+func createStorer(logger *zap.SugaredLogger, config Config) (repo.MetricStorer, *sql.DB, error) {
+	if config.DSN != "" {
+		db, err := sql.Open("pgx", config.DSN)
+		if err != nil {
+			logger.Errorw(
+				"Fail open db",
+				"address", config.DSN,
+			)
+			return nil, nil, err
+		}
+		storer, err := repo.NewPostgresMetricStorer(logger, db)
+
+		if err != nil {
+			logger.Errorw(
+				"Fail create storer",
+				"error", err.Error(),
+			)
+		}
+		return storer, db, nil
 	}
 
-	return repo.NewLocalMetricStorer(restore, filePath, logger)
+	if config.storeInterval == 0 {
+		return repo.NewFileMetricStorer(config.fileStoragePath, logger), nil, nil
+	}
+
+	return repo.NewLocalMetricStorer(config.restore, config.fileStoragePath, logger), nil, nil
 }

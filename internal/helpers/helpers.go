@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"go.uber.org/zap"
+	"html"
+	"sort"
 	"strconv"
 )
 
@@ -30,6 +32,9 @@ func ExtractValue(m models.Metric) (string, error) {
 }
 
 func ValidateMetric(m models.Metric) bool {
+	if m.ID == "" {
+		return false
+	}
 	switch m.MType {
 	case "gauge":
 		if m.Value == nil {
@@ -47,6 +52,12 @@ func ValidateMetric(m models.Metric) bool {
 }
 
 func UpdateCounterMetric(old models.Metric, new models.Metric) (models.Metric, error) {
+	oldValid := ValidateMetric(old)
+	newValid := ValidateMetric(new)
+
+	if !oldValid && newValid {
+		return new, nil
+	}
 
 	if old.ID != new.ID {
 		return old, fmt.Errorf("metrics have different names")
@@ -91,6 +102,29 @@ func UpdateMetricInMap(metrics *map[string]models.Metric, metric models.Metric, 
 		logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", err.Error())
 		return models.Metric{}, err
 	}
+}
+
+func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) (string, error) {
+	keys := make([]string, 0, len(metrics))
+	for key := range metrics {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	htmlString := "<html><body><h1>Metrics</h1><table border='1'><tr><th>Metric</th><th>Value</th></tr>"
+	for _, key := range keys {
+		metric := metrics[key]
+		value, err := ExtractValue(metric)
+		if err != nil {
+			logger.Errorw("Invalid metric value", "metric_id", key, "error", err)
+			return "", fmt.Errorf("invalid metric value for metric %s: %w", key, err)
+		}
+
+		htmlString += fmt.Sprintf("<tr><td>%s</td><td>%v</td></tr>", html.EscapeString(key), html.EscapeString(fmt.Sprintf("%v", value)))
+	}
+
+	htmlString += "</table></body></html>"
+	return htmlString, nil
 }
 
 func LogMetric(message string, metric models.Metric, logger *zap.SugaredLogger) {

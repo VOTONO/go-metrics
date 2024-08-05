@@ -9,7 +9,7 @@ import (
 
 const (
 	defaultAddress         = "localhost:8080"
-	defaultDBAddress       = "localhost:5432"
+	defaultDSN             = ""
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestore         = true
@@ -17,7 +17,7 @@ const (
 
 type Config struct {
 	address         string
-	dbAddress       string
+	DSN             string
 	storeInterval   int
 	fileStoragePath string
 	restore         bool
@@ -26,7 +26,7 @@ type Config struct {
 func getConfig() Config {
 	config := Config{
 		address:         defaultAddress,
-		dbAddress:       defaultDBAddress,
+		DSN:             defaultDSN,
 		storeInterval:   defaultStoreInterval,
 		fileStoragePath: defaultFileStoragePath,
 		restore:         defaultRestore,
@@ -34,7 +34,7 @@ func getConfig() Config {
 
 	// Parse flags
 	addressFlag := flag.String("a", config.address, fmt.Sprintf("Address to bind to (default: %s)", defaultAddress))
-	dbAddressFlag := flag.String("d", config.dbAddress, fmt.Sprintf("Address to bind db (default: %s)", defaultDBAddress))
+	dbAddressFlag := flag.String("d", config.DSN, fmt.Sprintf("Address to bind db (default: %s)", defaultDSN))
 	storeIntervalFlag := flag.Int("i", config.storeInterval, fmt.Sprintf("Store interval in seconds (default: %d)", defaultStoreInterval))
 	fileStoragePathFlag := flag.String("f", config.fileStoragePath, fmt.Sprintf("File storage path (default: %s)", defaultFileStoragePath))
 	restoreFlag := flag.Bool("r", config.restore, fmt.Sprintf("Restore from file storage (default: %t)", defaultRestore))
@@ -42,7 +42,7 @@ func getConfig() Config {
 
 	// Override with command-line flags if provided
 	config.address = *addressFlag
-	config.dbAddress = *dbAddressFlag
+	config.DSN = *dbAddressFlag
 	config.storeInterval = *storeIntervalFlag
 	config.fileStoragePath = *fileStoragePathFlag
 	config.restore = *restoreFlag
@@ -52,7 +52,7 @@ func getConfig() Config {
 		config.address = address
 	}
 	if dbAddress, ok := os.LookupEnv("DATABASE_DSN"); ok {
-		config.dbAddress = dbAddress
+		config.DSN = dbAddress
 	}
 	if storeInterval, ok := os.LookupEnv("STORE_INTERVAL"); ok {
 		if i, err := strconv.Atoi(storeInterval); err == nil {

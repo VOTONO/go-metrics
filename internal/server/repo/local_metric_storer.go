@@ -1,18 +1,12 @@
 package repo
 
 import (
+	"fmt"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"go.uber.org/zap"
 	"sync"
 )
-
-type MetricStorer interface {
-	Store(metric models.Metric) (*models.Metric, error)
-	Get(ID string) (models.Metric, bool)
-	All() (map[string]models.Metric, error)
-	Ping() error
-}
 
 type LocalMetricStorerImpl struct {
 	mu        sync.RWMutex
@@ -38,6 +32,11 @@ func NewLocalMetricStorer(restore bool, filePath string, zapLogger *zap.SugaredL
 func (s *LocalMetricStorerImpl) Store(newMetric models.Metric) (*models.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	valid := helpers.ValidateMetric(newMetric)
+	if !valid {
+		return &models.Metric{}, fmt.Errorf("invalide metric")
+	}
 
 	updatedMetric, err := helpers.UpdateMetricInMap(&s.metrics, newMetric, s.zapLogger)
 
