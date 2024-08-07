@@ -2,30 +2,30 @@ package network
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"github.com/VOTONO/go-metrics/internal/compressor"
 	"github.com/VOTONO/go-metrics/internal/models"
 
 	"go.uber.org/zap"
 )
 
-type Network interface {
+type MetricSender interface {
 	Send(metrics map[string]models.Metric) error
 	BuildRequest(metric models.Metric) (*http.Request, error)
 }
 
-// NetworkImpl implements MetricsSender using HTTP.
-type NetworkImpl struct {
+// MetricSenderImpl implements MetricsSender using HTTP.
+type MetricSenderImpl struct {
 	Client  *http.Client
 	Address string
 	Logger  zap.SugaredLogger
 }
 
-func New(client *http.Client, address string, logger zap.SugaredLogger) *NetworkImpl {
-	return &NetworkImpl{
+func New(client *http.Client, address string, logger zap.SugaredLogger) *MetricSenderImpl {
+	return &MetricSenderImpl{
 		Client:  client,
 		Address: address,
 		Logger:  logger,
@@ -33,7 +33,7 @@ func New(client *http.Client, address string, logger zap.SugaredLogger) *Network
 }
 
 // Send metrics to the server.
-func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
+func (sender *MetricSenderImpl) Send(metrics map[string]models.Metric) error {
 	for _, metric := range metrics {
 		req, err := sender.BuildRequest(metric)
 		if err != nil {
@@ -69,7 +69,7 @@ func (sender *NetworkImpl) Send(metrics map[string]models.Metric) error {
 }
 
 // BuildRequest  for a metric.
-func (sender *NetworkImpl) BuildRequest(metric models.Metric) (*http.Request, error) {
+func (sender *MetricSenderImpl) BuildRequest(metric models.Metric) (*http.Request, error) {
 	url := fmt.Sprintf("http://%s/update/", sender.Address)
 
 	body, err := json.Marshal(metric)
@@ -77,7 +77,7 @@ func (sender *NetworkImpl) BuildRequest(metric models.Metric) (*http.Request, er
 		return nil, err
 	}
 
-	compressedBody, err := compress(body)
+	compressedBody, err := compressor.GzipCompress(body)
 	if err != nil {
 		return nil, err
 	}
@@ -92,16 +92,4 @@ func (sender *NetworkImpl) BuildRequest(metric models.Metric) (*http.Request, er
 	req.Header.Set("Content-Encoding", "gzip")
 
 	return req, nil
-}
-
-func compress(b []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	if _, err := gz.Write(b); err != nil {
-		return nil, err
-	}
-	if err := gz.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }

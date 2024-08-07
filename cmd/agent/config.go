@@ -7,6 +7,12 @@ import (
 	"strconv"
 )
 
+const (
+	defaultAddress        = "localhost:8080"
+	defaultPollInterval   = 2
+	defaultReportInterval = 10
+)
+
 type Config struct {
 	address        string
 	pollInterval   int
@@ -14,12 +20,11 @@ type Config struct {
 }
 
 func getConfig() Config {
-	config := Config{}
-
-	// Default values
-	config.address = "localhost:8080"
-	config.pollInterval = 2
-	config.reportInterval = 10
+	config := Config{
+		address:        defaultAddress,
+		pollInterval:   defaultPollInterval,
+		reportInterval: defaultReportInterval,
+	}
 
 	if address, ok := os.LookupEnv("ADDRESS"); ok {
 		config.address = address
@@ -42,9 +47,9 @@ func getConfig() Config {
 	}
 
 	// Parse flags
-	addressFlag := flag.String("a", config.address, "Address to bind to (default: localhost:8080)")
-	pollIntervalFlag := flag.Int("p", config.pollInterval, "Poll interval in seconds (default: 2)")
-	reportIntervalFlag := flag.Int("r", config.reportInterval, "Report interval in seconds (default: 10)")
+	addressFlag := flag.String("a", config.address, fmt.Sprintf("Address to bind to (default: %s)", defaultAddress))
+	pollIntervalFlag := flag.Int("p", config.pollInterval, fmt.Sprintf("Poll interval in seconds (default: %d)", defaultPollInterval))
+	reportIntervalFlag := flag.Int("r", config.reportInterval, fmt.Sprintf("Report interval in seconds (default: %d)", defaultReportInterval))
 	flag.Parse()
 
 	// Override with command-line flags if provided
