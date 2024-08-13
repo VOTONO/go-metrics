@@ -78,7 +78,7 @@ func TestUpdateHandlerJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			if test.expectedCode == http.StatusOK {
-				metricStorer.EXPECT().Store(test.body).Return(&test.body, nil)
+				metricStorer.EXPECT().StoreSingle(gomock.Any(), test.body).Return(&test.body, nil)
 			}
 
 			jsonBody, err := json.Marshal(test.body)

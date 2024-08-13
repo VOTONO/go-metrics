@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"github.com/go-chi/chi/v5"
 	"net/http"
+	"time"
 )
 
 func ValueHandler(s repo.MetricStorer) http.HandlerFunc {
@@ -17,7 +19,10 @@ func ValueHandler(s repo.MetricStorer) http.HandlerFunc {
 			http.Error(res, "Invalide metric name", http.StatusNotFound)
 		}
 
-		metric, found := s.Get(name)
+		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
+		defer cancel()
+
+		metric, found := s.Get(ctx, name)
 
 		if !found {
 			http.Error(res, "Metric not found", http.StatusNotFound)

@@ -58,7 +58,7 @@ func Decompressor(next http.Handler) http.Handler {
 		}
 		defer gz.Close()
 
-		r.Body = http.MaxBytesReader(w, gz, r.ContentLength)
+		r.Body = gz
 
 		r.Header.Del("Content-Encoding")
 

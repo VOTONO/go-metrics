@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"net/http"
+	"time"
 )
 
 func ValueHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
@@ -24,7 +26,10 @@ func ValueHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
 			return
 		}
 
-		storedMetric, found := s.Get(metric.ID)
+		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
+		defer cancel()
+
+		storedMetric, found := s.Get(ctx, metric.ID)
 
 		if !found {
 			http.Error(res, "Metric not found", http.StatusNotFound)

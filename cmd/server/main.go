@@ -54,7 +54,7 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		metrics, err := storer.All()
+		metrics, err := storer.All(ctx)
 		if err != nil {
 			zapLogger.Errorw(
 				"failed get metrics from storage before writing to file",

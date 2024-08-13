@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"fmt"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
@@ -29,7 +30,7 @@ func NewLocalMetricStorer(restore bool, filePath string, zapLogger *zap.SugaredL
 	return storer
 }
 
-func (s *LocalMetricStorerImpl) Store(newMetric models.Metric) (*models.Metric, error) {
+func (s *LocalMetricStorerImpl) StoreSingle(ctx context.Context, newMetric models.Metric) (*models.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -48,7 +49,21 @@ func (s *LocalMetricStorerImpl) Store(newMetric models.Metric) (*models.Metric, 
 	return &updatedMetric, nil
 }
 
-func (s *LocalMetricStorerImpl) Get(ID string) (models.Metric, bool) {
+func (s *LocalMetricStorerImpl) StoreSlice(ctx context.Context, newMetrics []models.Metric) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, metric := range newMetrics {
+		_, err := helpers.UpdateMetricInMap(&s.metrics, metric, s.zapLogger)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *LocalMetricStorerImpl) Get(ctx context.Context, ID string) (models.Metric, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -57,7 +72,7 @@ func (s *LocalMetricStorerImpl) Get(ID string) (models.Metric, bool) {
 	return metric, found
 }
 
-func (s *LocalMetricStorerImpl) All() (map[string]models.Metric, error) {
+func (s *LocalMetricStorerImpl) All(ctx context.Context) (map[string]models.Metric, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

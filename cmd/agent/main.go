@@ -31,7 +31,7 @@ func main() {
 		Timeout: 10 * time.Second,
 	}
 	metricReader := logic.NewMetricReaderImpl()
-	metricSender := network.New(client, config.address, sugar)
+	metricSender := network.New(client, config.address, &sugar)
 	metricStorage := repo.New()
 
 	stop := make(chan os.Signal, 1)

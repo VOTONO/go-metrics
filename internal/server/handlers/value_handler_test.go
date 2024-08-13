@@ -63,7 +63,7 @@ func TestValueHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			if test.expectedCode == http.StatusOK {
-				metricStorer.EXPECT().Get(utils.ValidGaugeMetric.ID).Return(utils.ValidGaugeMetric, true)
+				metricStorer.EXPECT().Get(gomock.Any(), utils.ValidGaugeMetric.ID).Return(utils.ValidGaugeMetric, true)
 			}
 
 			req, err := http.NewRequest(test.method, server.URL+test.url, nil)

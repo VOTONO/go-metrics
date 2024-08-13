@@ -82,7 +82,7 @@ func StartWriting(ctx context.Context, storer MetricStorer, logger *zap.SugaredL
 		for {
 			select {
 			case <-ctx.Done():
-				metrics, err := storer.All()
+				metrics, err := storer.All(ctx)
 				if err != nil {
 					logError(logger, "failed get metrics from storage before writing to file", filePath, err)
 					return
@@ -90,7 +90,7 @@ func StartWriting(ctx context.Context, storer MetricStorer, logger *zap.SugaredL
 				RewriteFile(filePath, metrics, logger)
 				return
 			case <-storeTicker.C:
-				metrics, err := storer.All()
+				metrics, err := storer.All(ctx)
 				if err != nil {
 					logError(logger, "failed get metrics from storage before writing to file", filePath, err)
 					return

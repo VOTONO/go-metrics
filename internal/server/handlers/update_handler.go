@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"github.com/go-chi/chi/v5"
 	"net/http"
+	"time"
 )
 
 func UpdateHandler(s repo.MetricStorer) http.HandlerFunc {
@@ -21,7 +23,10 @@ func UpdateHandler(s repo.MetricStorer) http.HandlerFunc {
 			return
 		}
 
-		_, err = s.Store(metric)
+		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
+		defer cancel()
+
+		_, err = s.StoreSingle(ctx, metric)
 		if err != nil {
 			http.Error(res, "fail store metric", http.StatusInternalServerError)
 		}

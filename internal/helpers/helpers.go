@@ -127,6 +127,15 @@ func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) 
 	return htmlString, nil
 }
 
+// ConvertMapToSlice converts a map[string]models.Metric to a slice of models.Metric.
+func ConvertMapToSlice(metricsMap map[string]models.Metric) []models.Metric {
+	metricsSlice := make([]models.Metric, 0, len(metricsMap))
+	for _, metric := range metricsMap {
+		metricsSlice = append(metricsSlice, metric)
+	}
+	return metricsSlice
+}
+
 func LogMetric(message string, metric models.Metric, logger *zap.SugaredLogger) {
 	logger.Infow(
 		message,

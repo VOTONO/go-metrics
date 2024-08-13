@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	models "github.com/VOTONO/go-metrics/internal/models"
@@ -35,46 +36,60 @@ func (m *MockMetricStorer) EXPECT() *MockMetricStorerMockRecorder {
 }
 
 // All mocks base method.
-func (m *MockMetricStorer) All() (map[string]models.Metric, error) {
+func (m *MockMetricStorer) All(arg0 context.Context) (map[string]models.Metric, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "All")
+	ret := m.ctrl.Call(m, "All", arg0)
 	ret0, _ := ret[0].(map[string]models.Metric)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // All indicates an expected call of All.
-func (mr *MockMetricStorerMockRecorder) All() *gomock.Call {
+func (mr *MockMetricStorerMockRecorder) All(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*MockMetricStorer)(nil).All))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*MockMetricStorer)(nil).All), arg0)
 }
 
 // Get mocks base method.
-func (m *MockMetricStorer) Get(arg0 string) (models.Metric, bool) {
+func (m *MockMetricStorer) Get(arg0 context.Context, arg1 string) (models.Metric, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0)
+	ret := m.ctrl.Call(m, "Get", arg0, arg1)
 	ret0, _ := ret[0].(models.Metric)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockMetricStorerMockRecorder) Get(arg0 interface{}) *gomock.Call {
+func (mr *MockMetricStorerMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockMetricStorer)(nil).Get), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockMetricStorer)(nil).Get), arg0, arg1)
 }
 
-// Store mocks base method.
-func (m *MockMetricStorer) Store(arg0 models.Metric) (*models.Metric, error) {
+// StoreSingle mocks base method.
+func (m *MockMetricStorer) StoreSingle(arg0 context.Context, arg1 models.Metric) (*models.Metric, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Store", arg0)
+	ret := m.ctrl.Call(m, "StoreSingle", arg0, arg1)
 	ret0, _ := ret[0].(*models.Metric)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Store indicates an expected call of Store.
-func (mr *MockMetricStorerMockRecorder) Store(arg0 interface{}) *gomock.Call {
+// StoreSingle indicates an expected call of StoreSingle.
+func (mr *MockMetricStorerMockRecorder) StoreSingle(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockMetricStorer)(nil).Store), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreSingle", reflect.TypeOf((*MockMetricStorer)(nil).StoreSingle), arg0, arg1)
+}
+
+// StoreSlice mocks base method.
+func (m *MockMetricStorer) StoreSlice(arg0 context.Context, arg1 []models.Metric) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreSlice", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreSlice indicates an expected call of StoreSlice.
+func (mr *MockMetricStorerMockRecorder) StoreSlice(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreSlice", reflect.TypeOf((*MockMetricStorer)(nil).StoreSlice), arg0, arg1)
 }

@@ -56,7 +56,7 @@ func TestValueHandlerJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			if test.expectedCode == http.StatusOK {
-				metricStorer.EXPECT().Get(test.expectedMetric.ID).Return(test.expectedMetric, true)
+				metricStorer.EXPECT().Get(gomock.Any(), test.expectedMetric.ID).Return(test.expectedMetric, true)
 			}
 
 			jsonBody, err := json.Marshal(test.expectedMetric)

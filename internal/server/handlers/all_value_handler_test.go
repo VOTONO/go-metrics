@@ -55,7 +55,7 @@ func TestAllValueHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.expectedCode == http.StatusOK {
-				metricStorer.EXPECT().All().Return(test.metrics, nil)
+				metricStorer.EXPECT().All(gomock.Any()).Return(test.metrics, nil)
 			}
 
 			req, err := http.NewRequest(test.method, server.URL+test.url, nil)

@@ -87,7 +87,7 @@ func TestUpdateHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			if test.expectedCode == http.StatusOK {
-				metricStorer.EXPECT().Store(test.metric).Return(&test.metric, nil)
+				metricStorer.EXPECT().StoreSingle(gomock.Any(), test.metric).Return(&test.metric, nil)
 			}
 
 			req, err := http.NewRequest(test.method, server.URL+test.url, nil)

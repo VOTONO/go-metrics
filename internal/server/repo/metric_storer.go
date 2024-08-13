@@ -1,12 +1,17 @@
 package repo
 
-import "github.com/VOTONO/go-metrics/internal/models"
+import (
+	"context"
+	"github.com/VOTONO/go-metrics/internal/models"
+)
 
 type MetricStorer interface {
-	// Store metric and return updated version
-	Store(metric models.Metric) (*models.Metric, error)
+	// StoreSingle metric and return updated version
+	StoreSingle(ctx context.Context, metric models.Metric) (*models.Metric, error)
+	// StoreSlice of metrics
+	StoreSlice(ctx context.Context, metrics []models.Metric) error
 	// Get metric by ID
-	Get(ID string) (models.Metric, bool)
+	Get(ctx context.Context, ID string) (models.Metric, bool)
 	// All stored metrics
-	All() (map[string]models.Metric, error)
+	All(ctx context.Context) (map[string]models.Metric, error)
 }

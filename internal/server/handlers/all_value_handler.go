@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 func AllValueHandler(s repo.MetricStorer, logger *zap.SugaredLogger) http.HandlerFunc {
@@ -16,7 +18,10 @@ func AllValueHandler(s repo.MetricStorer, logger *zap.SugaredLogger) http.Handle
 			return
 		}
 
-		metrics, err := s.All()
+		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
+		defer cancel()
+
+		metrics, err := s.All(ctx)
 
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)

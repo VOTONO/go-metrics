@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"fmt"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
@@ -21,7 +22,7 @@ func NewFileMetricStorer(filePath string, logger *zap.SugaredLogger) MetricStore
 	}
 }
 
-func (s *FileMetricStorerImpl) Store(newMetric models.Metric) (*models.Metric, error) {
+func (s *FileMetricStorerImpl) StoreSingle(ctx context.Context, newMetric models.Metric) (*models.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -40,7 +41,29 @@ func (s *FileMetricStorerImpl) Store(newMetric models.Metric) (*models.Metric, e
 	return &updatedMetric, nil
 }
 
-func (s *FileMetricStorerImpl) Get(ID string) (models.Metric, bool) {
+func (s *FileMetricStorerImpl) StoreSlice(ctx context.Context, newMetrics []models.Metric) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	metrics, err := ReadFile(s.filePath, s.zapLogger)
+
+	if err != nil {
+		return err
+	}
+
+	for _, metric := range newMetrics {
+		_, err := helpers.UpdateMetricInMap(&metrics, metric, s.zapLogger)
+		if err != nil {
+			return err
+		}
+	}
+
+	RewriteFile(s.filePath, metrics, s.zapLogger)
+
+	return nil
+}
+
+func (s *FileMetricStorerImpl) Get(ctx context.Context, ID string) (models.Metric, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -55,7 +78,7 @@ func (s *FileMetricStorerImpl) Get(ID string) (models.Metric, bool) {
 	return metric, found
 }
 
-func (s *FileMetricStorerImpl) All() (map[string]models.Metric, error) {
+func (s *FileMetricStorerImpl) All(ctx context.Context) (map[string]models.Metric, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
