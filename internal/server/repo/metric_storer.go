@@ -11,7 +11,7 @@ type MetricStorer interface {
 	// StoreSlice of metrics
 	StoreSlice(ctx context.Context, metrics []models.Metric) error
 	// Get metric by ID
-	Get(ctx context.Context, ID string) (models.Metric, bool)
+	Get(ctx context.Context, ID string) (models.Metric, bool, error)
 	// All stored metrics
 	All(ctx context.Context) (map[string]models.Metric, error)
 }

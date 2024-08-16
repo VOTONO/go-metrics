@@ -49,7 +49,12 @@ func testStoreGetGauge(t *testing.T, stor repo.MetricStorer) {
 		t.Fatalf("returned an unexpected error: %v", err)
 	}
 
-	storedMetric, exists := stor.Get(context.Background(), utils.ValidGaugeMetric.ID)
+	storedMetric, exists, getErr := stor.Get(context.Background(), utils.ValidGaugeMetric.ID)
+
+	if getErr != nil {
+		t.Fatalf("returned an unexpected error: %v", getErr)
+	}
+
 	if !exists {
 		t.Errorf("expected metric not found")
 	}
@@ -65,7 +70,12 @@ func testStoreGetCounter(t *testing.T, stor repo.MetricStorer) {
 		t.Fatalf("returned an unexpected error: %v", err)
 	}
 
-	storedMetric, exists := stor.Get(context.Background(), utils.ValidCounterMetric.ID)
+	storedMetric, exists, getErr := stor.Get(context.Background(), utils.ValidCounterMetric.ID)
+
+	if getErr != nil {
+		t.Fatalf("returned an unexpected error: %v", getErr)
+	}
+
 	if !exists {
 		t.Errorf("expected metric not found")
 	}
@@ -106,7 +116,12 @@ func testStoreSlice(t *testing.T, stor repo.MetricStorer) {
 	}
 
 	for _, metric := range metrics {
-		storedMetric, exists := stor.Get(context.Background(), metric.ID)
+		storedMetric, exists, getErr := stor.Get(context.Background(), metric.ID)
+
+		if getErr != nil {
+			t.Fatalf("returned an unexpected error: %v", getErr)
+		}
+
 		if !exists {
 			t.Errorf("expected metric %s not found", metric.ID)
 		}

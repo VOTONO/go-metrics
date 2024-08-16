@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func UpdateHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
+func UpdateHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metric models.Metric
 		var buf bytes.Buffer
@@ -37,7 +37,7 @@ func UpdateHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
 		defer cancel()
 
-		stored, err := s.StoreSingle(ctx, metric)
+		stored, err := storeMetricWithRetry(ctx, storer, metric, 3, 1*time.Second)
 		if err != nil {
 			http.Error(res, "fail store metric", http.StatusInternalServerError)
 		}

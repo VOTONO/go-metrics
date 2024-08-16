@@ -63,13 +63,13 @@ func (s *LocalMetricStorerImpl) StoreSlice(ctx context.Context, newMetrics []mod
 	return nil
 }
 
-func (s *LocalMetricStorerImpl) Get(ctx context.Context, ID string) (models.Metric, bool) {
+func (s *LocalMetricStorerImpl) Get(ctx context.Context, ID string) (models.Metric, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	metric, found := s.metrics[ID]
 
-	return metric, found
+	return metric, found, nil
 }
 
 func (s *LocalMetricStorerImpl) All(ctx context.Context) (map[string]models.Metric, error) {

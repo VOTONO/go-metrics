@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func ValueHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
+func ValueHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metric models.Metric
 		var buf bytes.Buffer
@@ -29,7 +29,12 @@ func ValueHandlerJSON(s repo.MetricStorer) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
 		defer cancel()
 
-		storedMetric, found := s.Get(ctx, metric.ID)
+		storedMetric, found, getErr := getMetriWithRetry(ctx, storer, metric.ID, 3, 1*time.Second)
+
+		if getErr != nil {
+			http.Error(res, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 
 		if !found {
 			http.Error(res, "Metric not found", http.StatusNotFound)

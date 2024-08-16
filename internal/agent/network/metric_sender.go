@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"net/http"
+	"time"
 
 	"github.com/VOTONO/go-metrics/internal/compressor"
 	"github.com/VOTONO/go-metrics/internal/models"
@@ -20,38 +21,36 @@ type MetricSender interface {
 }
 
 type MetricSenderImpl struct {
-	Client                  *http.Client
-	Address                 string
-	Logger                  *zap.SugaredLogger
-	shouldSendBatchRequests bool
+	Client  *http.Client
+	Address string
+	Logger  *zap.SugaredLogger
 }
 
 func New(client *http.Client, address string, logger *zap.SugaredLogger) *MetricSenderImpl {
 	return &MetricSenderImpl{
-		Client:                  client,
-		Address:                 address,
-		Logger:                  logger,
-		shouldSendBatchRequests: true,
+		Client:  client,
+		Address: address,
+		Logger:  logger,
 	}
 }
 
 // Send metrics to the server.
 func (sender *MetricSenderImpl) Send(metrics map[string]models.Metric) error {
-	if sender.shouldSendBatchRequests {
-		if err := sender.sendBatch(metrics); err != nil {
-			if _, ok := err.(*NotFoundError); ok {
-				sender.shouldSendBatchRequests = false
-			} else {
-				return err
-			}
-		} else {
-			return nil
-		}
-	}
+	err := sender.sendBatch(metrics)
 
-	for _, metric := range metrics {
-		if err := sender.sendSingle(metric); err != nil {
-			return err
+	if err != nil {
+		retryCount := 3
+		retryPause := 1 * time.Second
+
+		for i := 0; i < retryCount; i++ {
+			time.Sleep(retryPause)
+			err = sender.sendBatch(metrics)
+
+			if err == nil {
+				return nil
+			}
+
+			retryPause += 2
 		}
 	}
 

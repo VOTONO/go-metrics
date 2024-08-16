@@ -234,18 +234,18 @@ func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []model
 }
 
 // Get retrieves a metric by its ID from the database
-func (p PostgresMetricStorer) Get(ctx context.Context, ID string) (models.Metric, bool) {
+func (p PostgresMetricStorer) Get(ctx context.Context, ID string) (models.Metric, bool, error) {
 	tx, txErr := p.db.Begin()
 	if txErr != nil {
 		p.logger.Errorw("failed to begin transaction", "err", txErr.Error())
-		return models.Metric{}, false
+		return models.Metric{}, false, txErr
 	}
 
 	stmt, prepErr := tx.PrepareContext(ctx, `SELECT id, mtype, delta, value FROM metrics WHERE id = $1;`)
 	if prepErr != nil {
 		p.logger.Errorw("failed to prepare statement", "err", prepErr.Error())
 		tx.Rollback()
-		return models.Metric{}, false
+		return models.Metric{}, false, prepErr
 	}
 	defer stmt.Close()
 
@@ -255,13 +255,17 @@ func (p PostgresMetricStorer) Get(ctx context.Context, ID string) (models.Metric
 
 	scanErr := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
 	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			tx.Commit()
+			return metric, false, nil
+		}
 		p.logger.Errorw("error getting metric", "id", ID, "error", scanErr.Error())
 		tx.Rollback()
-		return metric, false
+		return metric, false, scanErr
 	}
 
 	tx.Commit()
-	return metric, true
+	return metric, true, nil
 }
 
 func (p PostgresMetricStorer) All(ctx context.Context) (map[string]models.Metric, error) {

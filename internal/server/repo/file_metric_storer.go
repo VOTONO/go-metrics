@@ -63,19 +63,19 @@ func (s *FileMetricStorerImpl) StoreSlice(ctx context.Context, newMetrics []mode
 	return nil
 }
 
-func (s *FileMetricStorerImpl) Get(ctx context.Context, ID string) (models.Metric, bool) {
+func (s *FileMetricStorerImpl) Get(ctx context.Context, ID string) (models.Metric, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	metrics, err := ReadFile(s.filePath, s.zapLogger)
 
 	if err != nil {
-		return models.Metric{}, false
+		return models.Metric{}, false, err
 	}
 
 	metric, found := metrics[ID]
 
-	return metric, found
+	return metric, found, nil
 }
 
 func (s *FileMetricStorerImpl) All(ctx context.Context) (map[string]models.Metric, error) {

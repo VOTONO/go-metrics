@@ -51,12 +51,13 @@ func (mr *MockMetricStorerMockRecorder) All(arg0 interface{}) *gomock.Call {
 }
 
 // Get mocks base method.
-func (m *MockMetricStorer) Get(arg0 context.Context, arg1 string) (models.Metric, bool) {
+func (m *MockMetricStorer) Get(arg0 context.Context, arg1 string) (models.Metric, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
 	ret0, _ := ret[0].(models.Metric)
 	ret1, _ := ret[1].(bool)
-	return ret0, ret1
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Get indicates an expected call of Get.
