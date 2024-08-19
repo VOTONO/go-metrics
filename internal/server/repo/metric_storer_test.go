@@ -2,13 +2,15 @@ package repo_test
 
 import (
 	"context"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/handlers/utils"
-	"github.com/VOTONO/go-metrics/internal/server/repo"
-	"go.uber.org/zap"
 	"log"
 	"os"
 	"testing"
+
+	"go.uber.org/zap"
+
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/handlers/utils"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
 func TestMetricStorers(t *testing.T) {

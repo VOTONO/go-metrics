@@ -2,19 +2,21 @@ package handlers_test
 
 import (
 	"database/sql"
-	"github.com/VOTONO/go-metrics/internal/helpers"
-	"github.com/VOTONO/go-metrics/internal/mocks"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/router"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+
+	"github.com/VOTONO/go-metrics/internal/helpers"
+	"github.com/VOTONO/go-metrics/internal/mocks"
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/router"
 )
 
 func TestAllValueHandler(t *testing.T) {

@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"database/sql"
-	"github.com/VOTONO/go-metrics/internal/server/repo"
-	"github.com/VOTONO/go-metrics/internal/server/router"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
+
+	"github.com/VOTONO/go-metrics/internal/server/repo"
+	"github.com/VOTONO/go-metrics/internal/server/router"
 )
 
 func main() {

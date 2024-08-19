@@ -1,11 +1,13 @@
 package helpers
 
 import (
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"log"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+
+	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 func float64Ptr(v float64) *float64 { return &v }

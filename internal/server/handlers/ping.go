@@ -6,7 +6,7 @@ import (
 )
 
 func Ping(db *sql.DB) http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
+	return func(res http.ResponseWriter, _ *http.Request) {
 		err := db.Ping()
 
 		if err != nil {

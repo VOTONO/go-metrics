@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/VOTONO/go-metrics/internal/helpers"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/repo"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"net/http"
-	"time"
+
+	"github.com/VOTONO/go-metrics/internal/helpers"
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
 func ValueHandler(storer repo.MetricStorer) http.HandlerFunc {
@@ -26,7 +28,7 @@ func ValueHandler(storer repo.MetricStorer) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
 		defer cancel()
 
-		metric, found, getErr := getMetriWithRetry(ctx, storer, name, 3, 1*time.Second)
+		metric, found, getErr := getMetricWithRetry(ctx, storer, name, 3, 1*time.Second)
 
 		if getErr != nil {
 			http.Error(res, "Internal Server Error", http.StatusInternalServerError)
@@ -45,26 +47,32 @@ func ValueHandler(storer repo.MetricStorer) http.HandlerFunc {
 		}
 
 		res.Header().Set("Content-Type", "text/plain")
-		res.Write([]byte(fmt.Sprintf("%v", value)))
+		_, writeErr := res.Write([]byte(fmt.Sprintf("%v", value)))
+		if writeErr != nil {
+			http.Error(res, writeErr.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
-// storeMetricsWithRetry handles the retry logic for storing a slice of metrics.
-func getMetriWithRetry(ctx context.Context, storer repo.MetricStorer, id string, retryCount int, initialPause time.Duration) (models.Metric, bool, error) {
+func getMetricWithRetry(ctx context.Context, storer repo.MetricStorer, id string, retryCount int, initialPause time.Duration) (models.Metric, bool, error) {
 	retryPause := initialPause
 	var err error
 
 	for i := 0; i <= retryCount; i++ {
-		metric, found, getErr := storer.Get(ctx, id)
-		if getErr == nil {
-			return metric, found, nil // Success
+		var metric models.Metric
+		var found bool
+		metric, found, err = storer.Get(ctx, id)
+
+		if err == nil {
+			return metric, found, nil
 		}
 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.ConnectionException {
 			if i < retryCount {
 				time.Sleep(retryPause)
-				retryPause *= 2
+				retryPause += 2
 			}
 		} else {
 			break

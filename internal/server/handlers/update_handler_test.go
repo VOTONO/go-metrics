@@ -3,17 +3,19 @@ package handlers_test
 import (
 	"database/sql"
 	"fmt"
-	"github.com/VOTONO/go-metrics/internal/mocks"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/handlers/utils"
-	"github.com/VOTONO/go-metrics/internal/server/router"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+
+	"github.com/VOTONO/go-metrics/internal/mocks"
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/handlers/utils"
+	"github.com/VOTONO/go-metrics/internal/server/router"
 )
 
 func TestUpdateHandler(t *testing.T) {

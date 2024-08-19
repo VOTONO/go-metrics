@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/VOTONO/go-metrics/internal/helpers"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/repo"
+	"net/http"
+	"time"
+
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
+
+	"github.com/VOTONO/go-metrics/internal/helpers"
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
 func AllValueHandler(storer repo.MetricStorer, logger *zap.SugaredLogger) http.HandlerFunc {
@@ -40,7 +42,11 @@ func AllValueHandler(storer repo.MetricStorer, logger *zap.SugaredLogger) http.H
 
 		res.Header().Set("Content-Type", "text/html")
 		res.WriteHeader(http.StatusOK)
-		fmt.Fprintln(res, htmlContent)
+		_, printErr := fmt.Fprintln(res, htmlContent)
+		if printErr != nil {
+			http.Error(res, printErr.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 

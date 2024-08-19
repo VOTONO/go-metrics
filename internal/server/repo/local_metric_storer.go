@@ -3,10 +3,12 @@ package repo
 import (
 	"context"
 	"fmt"
+	"sync"
+
+	"go.uber.org/zap"
+
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
-	"go.uber.org/zap"
-	"sync"
 )
 
 type LocalMetricStorerImpl struct {
@@ -30,7 +32,7 @@ func NewLocalMetricStorer(restore bool, filePath string, zapLogger *zap.SugaredL
 	return storer
 }
 
-func (s *LocalMetricStorerImpl) StoreSingle(ctx context.Context, newMetric models.Metric) (*models.Metric, error) {
+func (s *LocalMetricStorerImpl) StoreSingle(_ context.Context, newMetric models.Metric) (*models.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -49,7 +51,7 @@ func (s *LocalMetricStorerImpl) StoreSingle(ctx context.Context, newMetric model
 	return &updatedMetric, nil
 }
 
-func (s *LocalMetricStorerImpl) StoreSlice(ctx context.Context, newMetrics []models.Metric) error {
+func (s *LocalMetricStorerImpl) StoreSlice(_ context.Context, newMetrics []models.Metric) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -63,16 +65,16 @@ func (s *LocalMetricStorerImpl) StoreSlice(ctx context.Context, newMetrics []mod
 	return nil
 }
 
-func (s *LocalMetricStorerImpl) Get(ctx context.Context, ID string) (models.Metric, bool, error) {
+func (s *LocalMetricStorerImpl) Get(_ context.Context, id string) (models.Metric, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	metric, found := s.metrics[ID]
+	metric, found := s.metrics[id]
 
 	return metric, found, nil
 }
 
-func (s *LocalMetricStorerImpl) All(ctx context.Context) (map[string]models.Metric, error) {
+func (s *LocalMetricStorerImpl) All(_ context.Context) (map[string]models.Metric, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

@@ -8,10 +8,11 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/VOTONO/go-metrics/internal/agent/logic"
 	"github.com/VOTONO/go-metrics/internal/agent/network"
 	"github.com/VOTONO/go-metrics/internal/agent/repo"
-	"go.uber.org/zap"
 )
 
 func main() {

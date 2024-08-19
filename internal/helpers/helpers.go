@@ -2,11 +2,13 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"go.uber.org/zap"
 	"html"
 	"sort"
 	"strconv"
+
+	"go.uber.org/zap"
+
+	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 func ExtractValue(m models.Metric) (string, error) {

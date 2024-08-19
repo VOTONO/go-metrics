@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/VOTONO/go-metrics/internal/helpers"
 	"net/http"
 	"time"
+
+	"github.com/VOTONO/go-metrics/internal/helpers"
 
 	"github.com/VOTONO/go-metrics/internal/compressor"
 	"github.com/VOTONO/go-metrics/internal/models"
@@ -60,74 +61,26 @@ func (sender *MetricSenderImpl) Send(metrics map[string]models.Metric) error {
 func (sender *MetricSenderImpl) sendBatch(metrics map[string]models.Metric) error {
 	req, err := sender.BuildBatchRequest(helpers.ConvertMapToSlice(metrics))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build batch request: %w", err)
 	}
 
 	resp, err := sender.Client.Do(req)
 	if err != nil {
-		sender.Logger.Errorw("Fail send batch request", "error", err.Error())
-		return fmt.Errorf("error sending batch request for metrics: %v", err)
+		sender.Logger.Errorw("Failed to send batch request", "error", err)
+		return fmt.Errorf("error sending batch request for metrics: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return &NotFoundError{Message: "batch request returned 404"}
-	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			sender.Logger.Errorw("Failed to close response body", "error", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
-		sender.Logger.Errorw("Bad response", "code", resp.StatusCode)
+		sender.Logger.Errorw("Received bad response", "status code", resp.StatusCode)
 		return fmt.Errorf("batch request failed with status code %d", resp.StatusCode)
 	}
 
 	return nil
-}
-
-func (sender *MetricSenderImpl) sendSingle(metric models.Metric) error {
-	req, err := sender.BuildSingleRequest(metric)
-	if err != nil {
-		sender.Logger.Errorw("Fail build single request", "metric", metric, "error", err.Error())
-		return fmt.Errorf("error creating  single request for metric %s: %v", metric.ID, err)
-	}
-
-	resp, err := sender.Client.Do(req)
-	if err != nil {
-		sender.Logger.Errorw("Fail send request", "metric", metric, "error", err)
-		return fmt.Errorf("error sending single request for metric %s: %v", metric.ID, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		sender.Logger.Errorw("Bad response", "code", resp.StatusCode)
-		return fmt.Errorf("request for metric %s failed with status code %d", metric.ID, resp.StatusCode)
-	}
-
-	return nil
-}
-
-// BuildSingleRequest creates a compressed HTTP request for a single metric.
-func (sender *MetricSenderImpl) BuildSingleRequest(metric models.Metric) (*http.Request, error) {
-	url := fmt.Sprintf("http://%s/update/", sender.Address)
-
-	body, err := json.Marshal(metric)
-	if err != nil {
-		return nil, err
-	}
-
-	compressedBody, err := compressor.GzipCompress(body)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(compressedBody))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Encoding", "gzip")
-
-	return req, nil
 }
 
 // BuildBatchRequest creates a compressed HTTP request for a batch of metrics.
@@ -159,8 +112,4 @@ func (sender *MetricSenderImpl) BuildBatchRequest(metrics []models.Metric) (*htt
 // NotFoundError is a custom error type for handling 404 status codes.
 type NotFoundError struct {
 	Message string
-}
-
-func (e *NotFoundError) Error() string {
-	return e.Message
 }

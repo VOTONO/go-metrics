@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/VOTONO/go-metrics/internal/helpers"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/VOTONO/go-metrics/internal/helpers"
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
 func UpdateHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {

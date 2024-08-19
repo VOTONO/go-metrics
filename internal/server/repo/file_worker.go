@@ -3,11 +3,13 @@ package repo
 import (
 	"context"
 	"encoding/json"
-	"github.com/VOTONO/go-metrics/internal/helpers"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"go.uber.org/zap"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/VOTONO/go-metrics/internal/helpers"
+	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 func ReadFile(file string, logger *zap.SugaredLogger) (map[string]models.Metric, error) {

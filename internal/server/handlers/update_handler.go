@@ -3,13 +3,15 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/repo"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"net/http"
-	"time"
+
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
 func UpdateHandler(storer repo.MetricStorer) http.HandlerFunc {
@@ -44,7 +46,8 @@ func storeMetricWithRetry(ctx context.Context, storer repo.MetricStorer, metric 
 	var err error
 
 	for i := 0; i <= retryCount; i++ {
-		storedMetric, err := storer.StoreSingle(ctx, metric)
+		var storedMetric *models.Metric
+		storedMetric, err = storer.StoreSingle(ctx, metric)
 		if err == nil {
 			return storedMetric, nil // Success
 		}

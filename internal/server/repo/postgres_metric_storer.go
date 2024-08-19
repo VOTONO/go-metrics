@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"go.uber.org/zap"
+
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
-	"go.uber.org/zap"
 )
 
 type PostgresMetricStorer struct {
@@ -19,7 +21,7 @@ func NewPostgresMetricStorer(logger *zap.SugaredLogger, db *sql.DB) (*PostgresMe
     CREATE TABLE IF NOT EXISTS metrics (
         id TEXT PRIMARY KEY,
         mtype TEXT,
-        delta INTEGER,
+        delta BIGINT,
         value DOUBLE PRECISION
     );`
 
@@ -35,7 +37,7 @@ func NewPostgresMetricStorer(logger *zap.SugaredLogger, db *sql.DB) (*PostgresMe
 	}, nil
 }
 
-// Store inserts or updates a metric in the database
+// StoreSingle inserts or updates a metric in the database
 func (p PostgresMetricStorer) StoreSingle(ctx context.Context, metric models.Metric) (*models.Metric, error) {
 
 	tx, txErr := p.db.Begin()
@@ -234,7 +236,7 @@ func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []model
 }
 
 // Get retrieves a metric by its ID from the database
-func (p PostgresMetricStorer) Get(ctx context.Context, ID string) (models.Metric, bool, error) {
+func (p PostgresMetricStorer) Get(ctx context.Context, id string) (models.Metric, bool, error) {
 	tx, txErr := p.db.Begin()
 	if txErr != nil {
 		p.logger.Errorw("failed to begin transaction", "err", txErr.Error())
@@ -251,7 +253,7 @@ func (p PostgresMetricStorer) Get(ctx context.Context, ID string) (models.Metric
 
 	var metric models.Metric
 
-	row := stmt.QueryRowContext(ctx, ID)
+	row := stmt.QueryRowContext(ctx, id)
 
 	scanErr := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
 	if scanErr != nil {
@@ -259,7 +261,7 @@ func (p PostgresMetricStorer) Get(ctx context.Context, ID string) (models.Metric
 			tx.Commit()
 			return metric, false, nil
 		}
-		p.logger.Errorw("error getting metric", "id", ID, "error", scanErr.Error())
+		p.logger.Errorw("error getting metric", "id", id, "error", scanErr.Error())
 		tx.Rollback()
 		return metric, false, scanErr
 	}

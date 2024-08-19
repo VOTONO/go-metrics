@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/VOTONO/go-metrics/internal/models"
-	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"net/http"
 	"time"
+
+	"github.com/VOTONO/go-metrics/internal/models"
+	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
 func ValueHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
@@ -29,7 +30,7 @@ func ValueHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
 		defer cancel()
 
-		storedMetric, found, getErr := getMetriWithRetry(ctx, storer, metric.ID, 3, 1*time.Second)
+		storedMetric, found, getErr := getMetricWithRetry(ctx, storer, metric.ID, 3, 1*time.Second)
 
 		if getErr != nil {
 			http.Error(res, "Internal Server Error", http.StatusInternalServerError)
