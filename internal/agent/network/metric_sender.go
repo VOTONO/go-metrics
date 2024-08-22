@@ -7,12 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/VOTONO/go-metrics/internal/helpers"
+	"go.uber.org/zap"
 
 	"github.com/VOTONO/go-metrics/internal/compressor"
+	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
-
-	"go.uber.org/zap"
 )
 
 type MetricSender interface {

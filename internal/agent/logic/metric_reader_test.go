@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/VOTONO/go-metrics/internal/constants"
 )
 
 func TestMemStatsMonitor_Read(t *testing.T) {
@@ -12,8 +14,8 @@ func TestMemStatsMonitor_Read(t *testing.T) {
 	metrics := monitor.Read()
 
 	assert.NotNil(t, metrics)
-	assert.Equal(t, "counter", metrics[PollCount].MType)
-	assert.Equal(t, "gauge", metrics[RandomValue].MType)
+	assert.Equal(t, constants.Counter, metrics[PollCount].MType)
+	assert.Equal(t, constants.Gauge, metrics[RandomValue].MType)
 
 	// Ensure MemStats metrics are present
 	memStatsFields := []string{
@@ -25,7 +27,7 @@ func TestMemStatsMonitor_Read(t *testing.T) {
 
 	for _, field := range memStatsFields {
 		t.Run(field, func(t *testing.T) {
-			assert.Equal(t, "gauge", metrics[field].MType)
+			assert.Equal(t, constants.Gauge, metrics[field].MType)
 		})
 	}
 }

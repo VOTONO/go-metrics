@@ -50,6 +50,11 @@ func ValueHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
 
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusOK)
-		res.Write(out)
+
+		_, writeErr := res.Write(out)
+		if writeErr != nil {
+			http.Error(res, writeErr.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }

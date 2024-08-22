@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/mocks"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/router"
@@ -47,7 +48,7 @@ func TestUpdateHandlerJSON(t *testing.T) {
 			url:    "/update/",
 			body: models.Metric{
 				ID:    "testMetric",
-				MType: "gauge",
+				MType: constants.Gauge,
 				Value: func() *float64 { f := float64(456.78); return &f }(),
 			},
 			expectedCode: http.StatusOK,
@@ -58,7 +59,7 @@ func TestUpdateHandlerJSON(t *testing.T) {
 			url:    "/update/",
 			body: models.Metric{
 				ID:    "testMetric",
-				MType: "counter",
+				MType: constants.Counter,
 				Value: func() *float64 { f := float64(456.78); return &f }(),
 			},
 			expectedCode: http.StatusBadRequest,
@@ -69,7 +70,7 @@ func TestUpdateHandlerJSON(t *testing.T) {
 			url:    "/update/",
 			body: models.Metric{
 				ID:    "testMetric",
-				MType: "gauge",
+				MType: constants.Gauge,
 				Delta: func() *int64 { f := int64(456); return &f }(),
 			},
 			expectedCode: http.StatusBadRequest,

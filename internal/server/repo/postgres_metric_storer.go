@@ -3,10 +3,12 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/models"
 )
@@ -47,7 +49,7 @@ func (p PostgresMetricStorer) StoreSingle(ctx context.Context, metric models.Met
 	}
 
 	switch metric.MType {
-	case "gauge":
+	case constants.Gauge:
 		stmt, prepErr := tx.PrepareContext(ctx,
 			`
             INSERT INTO metrics (id, mtype, delta, value)
@@ -74,7 +76,7 @@ func (p PostgresMetricStorer) StoreSingle(ctx context.Context, metric models.Met
 		}
 		tx.Commit()
 		return &metric, nil
-	case "counter":
+	case constants.Counter:
 		stmtSelect, prepSelectErr := tx.PrepareContext(ctx, `SELECT id, mtype, delta FROM metrics WHERE id = $1;`)
 		if prepSelectErr != nil {
 			p.logger.Errorw("failed to prepare statement", "err", prepSelectErr.Error())
@@ -89,7 +91,7 @@ func (p PostgresMetricStorer) StoreSingle(ctx context.Context, metric models.Met
 
 		scanErr := row.Scan(&existingMetric.ID, &existingMetric.MType, &existingMetric.Delta)
 		if scanErr != nil {
-			if scanErr != sql.ErrNoRows {
+			if !errors.Is(scanErr, sql.ErrNoRows) {
 				p.logger.Errorw("error retrieving metric", "metric_id", metric.ID, "error", scanErr.Error())
 				tx.Rollback()
 				return nil, scanErr
@@ -145,7 +147,7 @@ func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []model
 	}
 	for _, metric := range newMetrics {
 		switch metric.MType {
-		case "gauge":
+		case constants.Gauge:
 			stmt, prepErr := tx.PrepareContext(ctx,
 				`
             INSERT INTO metrics (id, mtype, delta, value)
@@ -157,7 +159,6 @@ func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []model
 				tx.Rollback()
 				return prepErr
 			}
-			defer stmt.Close()
 
 			rows, queryErr := stmt.QueryContext(ctx, metric.ID, metric.MType, metric.Value)
 			if queryErr != nil {
@@ -170,14 +171,13 @@ func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []model
 				tx.Rollback()
 				return rowsErr
 			}
-		case "counter":
+		case constants.Counter:
 			stmtSelect, prepSelectErr := tx.PrepareContext(ctx, `SELECT id, mtype, delta FROM metrics WHERE id = $1;`)
 			if prepSelectErr != nil {
 				p.logger.Errorw("failed to prepare statement", "err", prepSelectErr.Error())
 				tx.Rollback()
 				return prepSelectErr
 			}
-			defer stmtSelect.Close()
 
 			var existingMetric models.Metric
 
@@ -185,7 +185,7 @@ func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []model
 
 			scanErr := row.Scan(&existingMetric.ID, &existingMetric.MType, &existingMetric.Delta)
 			if scanErr != nil {
-				if scanErr != sql.ErrNoRows {
+				if !errors.Is(scanErr, sql.ErrNoRows) {
 					p.logger.Errorw("error retrieving metric", "metric_id", metric.ID, "error", scanErr.Error())
 					tx.Rollback()
 					return scanErr
@@ -209,7 +209,6 @@ func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []model
 				tx.Rollback()
 				return prepInsertErr
 			}
-			defer stmtInsert.Close()
 
 			rows, queryInsertErr := stmtInsert.QueryContext(ctx, newMetric.ID, newMetric.MType, newMetric.Delta)
 			if queryInsertErr != nil {
@@ -257,7 +256,7 @@ func (p PostgresMetricStorer) Get(ctx context.Context, id string) (models.Metric
 
 	scanErr := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
 	if scanErr != nil {
-		if scanErr == sql.ErrNoRows {
+		if errors.Is(scanErr, sql.ErrNoRows) {
 			tx.Commit()
 			return metric, false, nil
 		}

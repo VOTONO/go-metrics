@@ -60,13 +60,16 @@ func AddToFile(file string, metric models.Metric, logger *zap.SugaredLogger) (mo
 		return models.Metric{}, err
 	}
 
-	updated, err := helpers.UpdateMetricInMap(&metrics, metric, logger)
+	updated, err := helpers.UpdateMetricInMap(metrics, metric, logger)
 
 	if err != nil {
 		return models.Metric{}, err
 	}
 
-	RewriteFile(file, metrics, logger)
+	rewriteErr := RewriteFile(file, metrics, logger)
+	if rewriteErr != nil {
+		return models.Metric{}, rewriteErr
+	}
 
 	return updated, nil
 }
@@ -89,7 +92,10 @@ func StartWriting(ctx context.Context, storer MetricStorer, logger *zap.SugaredL
 					logError(logger, "failed get metrics from storage before writing to file", filePath, err)
 					return
 				}
-				RewriteFile(filePath, metrics, logger)
+				rewriteErr := RewriteFile(filePath, metrics, logger)
+				if rewriteErr != nil {
+					logger.Errorw("failed to rewrite metrics", filePath, "error", rewriteErr.Error())
+				}
 				return
 			case <-storeTicker.C:
 				metrics, err := storer.All(ctx)
@@ -97,7 +103,10 @@ func StartWriting(ctx context.Context, storer MetricStorer, logger *zap.SugaredL
 					logError(logger, "failed get metrics from storage before writing to file", filePath, err)
 					return
 				}
-				RewriteFile(filePath, metrics, logger)
+				rewriteErr := RewriteFile(filePath, metrics, logger)
+				if rewriteErr != nil {
+					logger.Errorw("failed to rewrite metrics", filePath, "error", rewriteErr.Error())
+				}
 			}
 		}
 	}()

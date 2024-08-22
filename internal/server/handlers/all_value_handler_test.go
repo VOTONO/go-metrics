@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/helpers"
 	"github.com/VOTONO/go-metrics/internal/mocks"
 	"github.com/VOTONO/go-metrics/internal/models"
@@ -48,8 +49,8 @@ func TestAllValueHandler(t *testing.T) {
 			method: http.MethodGet,
 			url:    "/",
 			metrics: map[string]models.Metric{
-				"metric1": {ID: "metric1", MType: "gauge", Value: func() *float64 { f := 123.45; return &f }()},
-				"metric2": {ID: "metric2", MType: "counter", Delta: func() *int64 { i := int64(678); return &i }()},
+				"metric1": {ID: "metric1", MType: constants.Gauge, Value: func() *float64 { f := 123.45; return &f }()},
+				"metric2": {ID: "metric2", MType: constants.Counter, Delta: func() *int64 { i := int64(678); return &i }()},
 			},
 			expectedCode: http.StatusOK,
 		},

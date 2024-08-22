@@ -3,6 +3,8 @@ package models
 import (
 	"reflect"
 	"testing"
+
+	"github.com/VOTONO/go-metrics/internal/constants"
 )
 
 func TestNewMetric(t *testing.T) {
@@ -24,12 +26,12 @@ func TestNewMetric(t *testing.T) {
 			name: "Valid gauge metric",
 			args: args{
 				id:         "testGauge",
-				metricType: "gauge",
+				metricType: constants.Gauge,
 				value:      "123.45",
 			},
 			want: Metric{
 				ID:    "testGauge",
-				MType: "gauge",
+				MType: constants.Gauge,
 				Value: float64Ptr(123.45),
 			},
 			wantErr: false,
@@ -38,12 +40,12 @@ func TestNewMetric(t *testing.T) {
 			name: "Valid counter metric",
 			args: args{
 				id:         "testCounter",
-				metricType: "counter",
+				metricType: constants.Counter,
 				value:      "123",
 			},
 			want: Metric{
 				ID:    "testCounter",
-				MType: "counter",
+				MType: constants.Counter,
 				Delta: int64Ptr(123),
 			},
 			wantErr: false,
@@ -52,7 +54,7 @@ func TestNewMetric(t *testing.T) {
 			name: "Invalid gauge value",
 			args: args{
 				id:         "invalidGauge",
-				metricType: "gauge",
+				metricType: constants.Gauge,
 				value:      "abc",
 			},
 			want:    Metric{},
@@ -62,7 +64,7 @@ func TestNewMetric(t *testing.T) {
 			name: "Invalid counter value",
 			args: args{
 				id:         "invalidCounter",
-				metricType: "counter",
+				metricType: constants.Counter,
 				value:      "abc",
 			},
 			want:    Metric{},

@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"runtime"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
@@ -27,13 +28,13 @@ func (m *MetricReaderImpl) Read() map[string]models.Metric {
 	m.count++
 	m.metrics[PollCount] = models.Metric{
 		ID:    PollCount,
-		MType: "counter",
+		MType: constants.Counter,
 		Delta: &m.count,
 	}
 	random := rand.Float64()
 	m.metrics[RandomValue] = models.Metric{
 		ID:    RandomValue,
-		MType: "gauge",
+		MType: constants.Gauge,
 		Value: &random,
 	}
 
@@ -74,7 +75,7 @@ func (m *MetricReaderImpl) Read() map[string]models.Metric {
 func makeGaugeMetric(id string, value float64) models.Metric {
 	return models.Metric{
 		ID:    id,
-		MType: "gauge",
+		MType: constants.Gauge,
 		Value: &value,
 	}
 }

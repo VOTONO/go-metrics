@@ -3,14 +3,14 @@ package router
 import (
 	"database/sql"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
+
 	"github.com/VOTONO/go-metrics/internal/compressor"
 	"github.com/VOTONO/go-metrics/internal/logger"
 	"github.com/VOTONO/go-metrics/internal/server/handlers"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
 )
 
 func Router(s repo.MetricStorer, db *sql.DB, zap *zap.SugaredLogger) chi.Router {

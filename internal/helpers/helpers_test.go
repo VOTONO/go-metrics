@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
@@ -22,25 +23,25 @@ func TestExtractValue(t *testing.T) {
 	}{
 		{
 			name:    "Extract gauge value",
-			args:    models.Metric{ID: "metric1", MType: "gauge", Value: float64Ptr(123.45)},
+			args:    models.Metric{ID: "metric1", MType: constants.Gauge, Value: float64Ptr(123.45)},
 			want:    "123.45",
 			wantErr: false,
 		},
 		{
 			name:    "Extract counter value",
-			args:    models.Metric{ID: "metric2", MType: "counter", Delta: int64Ptr(123)},
+			args:    models.Metric{ID: "metric2", MType: constants.Counter, Delta: int64Ptr(123)},
 			want:    "123",
 			wantErr: false,
 		},
 		{
 			name:    "Gauge value is nil",
-			args:    models.Metric{ID: "metric3", MType: "gauge", Value: nil},
+			args:    models.Metric{ID: "metric3", MType: constants.Gauge, Value: nil},
 			want:    "",
 			wantErr: true,
 		},
 		{
 			name:    "Counter delta is nil",
-			args:    models.Metric{ID: "metric4", MType: "counter", Delta: nil},
+			args:    models.Metric{ID: "metric4", MType: constants.Counter, Delta: nil},
 			want:    "",
 			wantErr: true,
 		},
@@ -74,22 +75,22 @@ func TestValidateMetric(t *testing.T) {
 	}{
 		{
 			name: "Valid gauge metric",
-			args: models.Metric{ID: "metric1", MType: "gauge", Value: float64Ptr(123.45)},
+			args: models.Metric{ID: "metric1", MType: constants.Gauge, Value: float64Ptr(123.45)},
 			want: true,
 		},
 		{
 			name: "Valid counter metric",
-			args: models.Metric{ID: "metric2", MType: "counter", Delta: int64Ptr(123)},
+			args: models.Metric{ID: "metric2", MType: constants.Counter, Delta: int64Ptr(123)},
 			want: true,
 		},
 		{
 			name: "Gauge metric with nil value",
-			args: models.Metric{ID: "metric3", MType: "gauge", Value: nil},
+			args: models.Metric{ID: "metric3", MType: constants.Gauge, Value: nil},
 			want: false,
 		},
 		{
 			name: "Counter metric with nil delta",
-			args: models.Metric{ID: "metric4", MType: "counter", Delta: nil},
+			args: models.Metric{ID: "metric4", MType: constants.Counter, Delta: nil},
 			want: false,
 		},
 		{
@@ -118,30 +119,30 @@ func TestUpdateCounterMetric(t *testing.T) {
 	}{
 		{
 			name:    "Valid counter metric update",
-			old:     models.Metric{ID: "metric1", MType: "counter", Delta: int64Ptr(10)},
-			new:     models.Metric{ID: "metric1", MType: "counter", Delta: int64Ptr(5)},
-			want:    models.Metric{ID: "metric1", MType: "counter", Delta: int64Ptr(15)},
+			old:     models.Metric{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+			new:     models.Metric{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(5)},
+			want:    models.Metric{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(15)},
 			wantErr: false,
 		},
 		{
 			name:    "Metric type mismatch",
-			old:     models.Metric{ID: "metric2", MType: "counter", Delta: int64Ptr(10)},
-			new:     models.Metric{ID: "metric2", MType: "gauge", Value: float64Ptr(123.45)},
-			want:    models.Metric{ID: "metric2", MType: "counter", Delta: int64Ptr(10)},
+			old:     models.Metric{ID: "metric2", MType: constants.Counter, Delta: int64Ptr(10)},
+			new:     models.Metric{ID: "metric2", MType: constants.Gauge, Value: float64Ptr(123.45)},
+			want:    models.Metric{ID: "metric2", MType: constants.Counter, Delta: int64Ptr(10)},
 			wantErr: true,
 		},
 		{
 			name:    "New delta is nil",
-			old:     models.Metric{ID: "metric4", MType: "counter", Delta: int64Ptr(10)},
-			new:     models.Metric{ID: "metric4", MType: "counter", Delta: nil},
-			want:    models.Metric{ID: "metric4", MType: "counter", Delta: int64Ptr(10)},
+			old:     models.Metric{ID: "metric4", MType: constants.Counter, Delta: int64Ptr(10)},
+			new:     models.Metric{ID: "metric4", MType: constants.Counter, Delta: nil},
+			want:    models.Metric{ID: "metric4", MType: constants.Counter, Delta: int64Ptr(10)},
 			wantErr: true,
 		},
 		{
 			name:    "Both deltas are nil",
-			old:     models.Metric{ID: "metric5", MType: "counter", Delta: nil},
-			new:     models.Metric{ID: "metric5", MType: "counter", Delta: nil},
-			want:    models.Metric{ID: "metric5", MType: "counter", Delta: nil},
+			old:     models.Metric{ID: "metric5", MType: constants.Counter, Delta: nil},
+			new:     models.Metric{ID: "metric5", MType: constants.Counter, Delta: nil},
+			want:    models.Metric{ID: "metric5", MType: constants.Counter, Delta: nil},
 			wantErr: true,
 		},
 	}
@@ -170,16 +171,16 @@ func TestMetricsToHTML(t *testing.T) {
 		{
 			name: "Valid metrics",
 			metrics: map[string]models.Metric{
-				"metric1": {ID: "metric1", MType: "gauge", Value: func() *float64 { f := 123.45; return &f }()},
-				"metric2": {ID: "metric2", MType: "counter", Delta: func() *int64 { i := int64(678); return &i }()},
+				"metric1": {ID: "metric1", MType: constants.Gauge, Value: func() *float64 { f := 123.45; return &f }()},
+				"metric2": {ID: "metric2", MType: constants.Counter, Delta: func() *int64 { i := int64(678); return &i }()},
 			},
 			want:      `<html><body><h1>Metrics</h1><table border='1'><tr><th>Metric</th><th>Value</th></tr><tr><td>metric1</td><td>123.45</td></tr><tr><td>metric2</td><td>678</td></tr></table></body></html>`,
 			expectErr: false,
 		},
 		{
-			name: "Gauge metric with nil value",
+			name: "constants.Gauge metric with nil value",
 			metrics: map[string]models.Metric{
-				"metric1": {ID: "metric1", MType: "gauge", Value: nil},
+				"metric1": {ID: "metric1", MType: constants.Gauge, Value: nil},
 			},
 			want:      "",
 			expectErr: true,
@@ -187,7 +188,7 @@ func TestMetricsToHTML(t *testing.T) {
 		{
 			name: "Counter metric with nil delta",
 			metrics: map[string]models.Metric{
-				"metric2": {ID: "metric2", MType: "counter", Delta: nil},
+				"metric2": {ID: "metric2", MType: constants.Counter, Delta: nil},
 			},
 			want:      "",
 			expectErr: true,

@@ -3,6 +3,8 @@ package models
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/VOTONO/go-metrics/internal/constants"
 )
 
 // Metric struct defines a metric with an ID, type, and either a Delta or Value
@@ -19,7 +21,7 @@ func NewMetric(id string, metricType string, value string) (Metric, error) {
 	var err error
 
 	switch metricType {
-	case "gauge":
+	case constants.Gauge:
 		var v float64
 		v, err = strconv.ParseFloat(value, 64)
 		if err != nil {
@@ -27,10 +29,10 @@ func NewMetric(id string, metricType string, value string) (Metric, error) {
 		}
 		metric = Metric{
 			ID:    id,
-			MType: "gauge",
+			MType: constants.Gauge,
 			Value: &v,
 		}
-	case "counter":
+	case constants.Counter:
 		var v int64
 		v, err = strconv.ParseInt(value, 10, 64)
 		if err != nil {
@@ -38,7 +40,7 @@ func NewMetric(id string, metricType string, value string) (Metric, error) {
 		}
 		metric = Metric{
 			ID:    id,
-			MType: "counter",
+			MType: constants.Counter,
 			Delta: &v,
 		}
 	default:

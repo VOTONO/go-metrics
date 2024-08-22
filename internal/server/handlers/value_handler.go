@@ -47,7 +47,7 @@ func ValueHandler(storer repo.MetricStorer) http.HandlerFunc {
 		}
 
 		res.Header().Set("Content-Type", "text/plain")
-		_, writeErr := res.Write([]byte(fmt.Sprintf("%v", value)))
+		_, writeErr := fmt.Fprintf(res, "%v", value)
 		if writeErr != nil {
 			http.Error(res, writeErr.Error(), http.StatusInternalServerError)
 			return

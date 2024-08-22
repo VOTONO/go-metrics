@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"net/http"
 	"os/signal"
@@ -19,7 +20,7 @@ import (
 func main() {
 	logger, err := zap.NewProduction()
 	if err != nil {
-		log.Fatalf("can't initialize zap logger: %v", err)
+		log.Printf("can't initialize zap logger: %v\n", err)
 	}
 	defer logger.Sync()
 
@@ -79,7 +80,7 @@ func main() {
 
 	repo.StartWriting(ctx, storer, &zapLogger, config.storeInterval, config.fileStoragePath)
 
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		zapLogger.Errorw(
 			"Fail start server",
 			"error", err,

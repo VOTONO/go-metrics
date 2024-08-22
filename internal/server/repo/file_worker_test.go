@@ -6,9 +6,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VOTONO/go-metrics/internal/models"
-
 	"go.uber.org/zap/zaptest"
+
+	"github.com/VOTONO/go-metrics/internal/constants"
+	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 func createTempFile(t *testing.T, content []byte) *os.File {
@@ -41,12 +42,12 @@ func TestRead(t *testing.T) {
 	metrics := map[string]models.Metric{
 		"metric1": {
 			ID:    "metric1",
-			MType: "gauge",
+			MType: constants.Gauge,
 			Value: func(f float64) *float64 { return &f }(123.45),
 		},
 		"metric2": {
 			ID:    "metric2",
-			MType: "counter",
+			MType: constants.Counter,
 			Delta: func(i int64) *int64 { return &i }(678),
 		},
 	}
@@ -105,12 +106,12 @@ func TestWrite(t *testing.T) {
 	metrics := map[string]models.Metric{
 		"metric1": {
 			ID:    "metric1",
-			MType: "gauge",
+			MType: constants.Gauge,
 			Value: func(f float64) *float64 { return &f }(123.45),
 		},
 		"metric2": {
 			ID:    "metric2",
-			MType: "counter",
+			MType: constants.Counter,
 			Delta: func(i int64) *int64 { return &i }(678),
 		},
 	}

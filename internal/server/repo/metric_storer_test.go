@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/handlers/utils"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
@@ -108,8 +109,8 @@ func testInvalidMetric(t *testing.T, stor repo.MetricStorer) {
 
 func testStoreSlice(t *testing.T, stor repo.MetricStorer) {
 	metrics := []models.Metric{
-		{ID: "gauge1", MType: "gauge", Value: float64Pointer(0.75)},
-		{ID: "counter1", MType: "counter", Delta: int64Pointer(10)},
+		{ID: "gauge1", MType: constants.Gauge, Value: float64Pointer(0.75)},
+		{ID: "counter1", MType: constants.Counter, Delta: int64Pointer(10)},
 	}
 
 	err := stor.StoreSlice(context.Background(), metrics)

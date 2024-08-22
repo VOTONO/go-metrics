@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/mocks"
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/router"
@@ -47,7 +48,7 @@ func TestValueHandlerJSON(t *testing.T) {
 			url:    "/value/",
 			expectedMetric: models.Metric{
 				ID:    "testMetric",
-				MType: "gauge",
+				MType: constants.Gauge,
 				Value: func() *float64 { f := float64(100); return &f }(),
 			},
 			expectedCode: http.StatusOK,

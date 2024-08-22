@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/constants"
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
@@ -15,13 +16,13 @@ func ExtractValue(m models.Metric) (string, error) {
 	var value string
 
 	switch m.MType {
-	case "gauge":
+	case constants.Gauge:
 		if m.Value != nil {
 			value = strconv.FormatFloat(*m.Value, 'f', -1, 64)
 		} else {
 			return "", fmt.Errorf("metric value not found")
 		}
-	case "counter":
+	case constants.Counter:
 		if m.Delta != nil {
 			value = strconv.FormatInt(*m.Delta, 10)
 		} else {
@@ -38,12 +39,12 @@ func ValidateMetric(m models.Metric) bool {
 		return false
 	}
 	switch m.MType {
-	case "gauge":
+	case constants.Gauge:
 		if m.Value == nil {
 			return false
 		}
 		return true
-	case "counter":
+	case constants.Counter:
 		if m.Delta == nil {
 			return false
 		}
@@ -64,7 +65,7 @@ func UpdateCounterMetric(old models.Metric, new models.Metric) (models.Metric, e
 	if old.ID != new.ID {
 		return old, fmt.Errorf("metrics have different names")
 	}
-	if old.MType != "counter" || new.MType != "counter" {
+	if old.MType != constants.Counter || new.MType != constants.Counter {
 		return old, fmt.Errorf("metric type mismatch")
 	}
 
@@ -79,13 +80,13 @@ func UpdateCounterMetric(old models.Metric, new models.Metric) (models.Metric, e
 }
 
 // UpdateMetricInMap update given metrics map with given metric
-func UpdateMetricInMap(metrics *map[string]models.Metric, metric models.Metric, logger *zap.SugaredLogger) (models.Metric, error) {
+func UpdateMetricInMap(metrics map[string]models.Metric, metric models.Metric, logger *zap.SugaredLogger) (models.Metric, error) {
 	switch metric.MType {
-	case "gauge":
-		(*metrics)[metric.ID] = metric
+	case constants.Gauge:
+		(metrics)[metric.ID] = metric
 		return metric, nil
-	case "counter":
-		if existingMetric, found := (*metrics)[metric.ID]; found {
+	case constants.Counter:
+		if existingMetric, found := (metrics)[metric.ID]; found {
 			updatedMetric, err := UpdateCounterMetric(existingMetric, metric)
 
 			if err != nil {
@@ -93,10 +94,10 @@ func UpdateMetricInMap(metrics *map[string]models.Metric, metric models.Metric, 
 				return models.Metric{}, err
 			}
 
-			(*metrics)[metric.ID] = updatedMetric
+			(metrics)[metric.ID] = updatedMetric
 			return updatedMetric, nil
 		} else {
-			(*metrics)[metric.ID] = metric
+			(metrics)[metric.ID] = metric
 			return metric, nil
 		}
 	default:

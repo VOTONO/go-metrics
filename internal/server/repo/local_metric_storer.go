@@ -41,7 +41,7 @@ func (s *LocalMetricStorerImpl) StoreSingle(_ context.Context, newMetric models.
 		return &models.Metric{}, fmt.Errorf("invalide metric")
 	}
 
-	updatedMetric, err := helpers.UpdateMetricInMap(&s.metrics, newMetric, s.zapLogger)
+	updatedMetric, err := helpers.UpdateMetricInMap(s.metrics, newMetric, s.zapLogger)
 
 	if err != nil {
 		return &models.Metric{}, err
@@ -56,7 +56,7 @@ func (s *LocalMetricStorerImpl) StoreSlice(_ context.Context, newMetrics []model
 	defer s.mu.Unlock()
 
 	for _, metric := range newMetrics {
-		_, err := helpers.UpdateMetricInMap(&s.metrics, metric, s.zapLogger)
+		_, err := helpers.UpdateMetricInMap(s.metrics, metric, s.zapLogger)
 		if err != nil {
 			return err
 		}

@@ -47,20 +47,23 @@ func (s *FileMetricStorerImpl) StoreSlice(_ context.Context, newMetrics []models
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	metrics, err := ReadFile(s.filePath, s.zapLogger)
+	metrics, readErr := ReadFile(s.filePath, s.zapLogger)
 
-	if err != nil {
-		return err
+	if readErr != nil {
+		return readErr
 	}
 
 	for _, metric := range newMetrics {
-		_, err := helpers.UpdateMetricInMap(&metrics, metric, s.zapLogger)
+		_, err := helpers.UpdateMetricInMap(metrics, metric, s.zapLogger)
 		if err != nil {
 			return err
 		}
 	}
 
-	RewriteFile(s.filePath, metrics, s.zapLogger)
+	rewriteErr := RewriteFile(s.filePath, metrics, s.zapLogger)
+	if rewriteErr != nil {
+		return rewriteErr
+	}
 
 	return nil
 }

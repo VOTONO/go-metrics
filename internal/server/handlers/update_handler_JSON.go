@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -38,18 +37,25 @@ func UpdateHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
 		defer cancel()
 
-		stored, err := storeMetricWithRetry(ctx, storer, metric, 3, 1*time.Second)
-		if err != nil {
-			http.Error(res, "fail store metric", http.StatusInternalServerError)
+		stored, storeErr := storeMetricWithRetry(ctx, storer, metric, 3, 1*time.Second)
+		if storeErr != nil {
+			http.Error(res, storeErr.Error(), http.StatusInternalServerError)
+			return
 		}
 
-		out, err := json.Marshal(stored)
-		if err != nil {
-			log.Fatal(err)
+		out, marshalErr := json.Marshal(stored)
+		if marshalErr != nil {
+			http.Error(res, marshalErr.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusOK)
-		res.Write(out)
+
+		_, writeErr := res.Write(out)
+		if writeErr != nil {
+			http.Error(res, writeErr.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
