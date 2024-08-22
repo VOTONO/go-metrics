@@ -2,6 +2,9 @@ package network
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,8 +38,8 @@ func New(client *http.Client, address string, logger *zap.SugaredLogger) *Metric
 }
 
 // Send metrics to the server.
-func (sender *MetricSenderImpl) Send(metrics map[string]models.Metric) error {
-	err := sender.sendBatch(metrics)
+func (sender *MetricSenderImpl) Send(metrics map[string]models.Metric, key string) error {
+	err := sender.sendBatch(metrics, key)
 
 	if err != nil {
 		retryCount := 3
@@ -44,7 +47,7 @@ func (sender *MetricSenderImpl) Send(metrics map[string]models.Metric) error {
 
 		for i := 0; i < retryCount; i++ {
 			time.Sleep(retryPause)
-			err = sender.sendBatch(metrics)
+			err = sender.sendBatch(metrics, key)
 
 			if err == nil {
 				return nil
@@ -57,8 +60,8 @@ func (sender *MetricSenderImpl) Send(metrics map[string]models.Metric) error {
 	return nil
 }
 
-func (sender *MetricSenderImpl) sendBatch(metrics map[string]models.Metric) error {
-	req, err := sender.BuildBatchRequest(helpers.ConvertMapToSlice(metrics))
+func (sender *MetricSenderImpl) sendBatch(metrics map[string]models.Metric, key string) error {
+	req, err := sender.BuildBatchRequest(helpers.ConvertMapToSlice(metrics), key)
 	if err != nil {
 		return fmt.Errorf("failed to build batch request: %w", err)
 	}
@@ -83,7 +86,7 @@ func (sender *MetricSenderImpl) sendBatch(metrics map[string]models.Metric) erro
 }
 
 // BuildBatchRequest creates a compressed HTTP request for a batch of metrics.
-func (sender *MetricSenderImpl) BuildBatchRequest(metrics []models.Metric) (*http.Request, error) {
+func (sender *MetricSenderImpl) BuildBatchRequest(metrics []models.Metric, key string) (*http.Request, error) {
 	url := fmt.Sprintf("http://%s/updates/", sender.Address)
 
 	body, err := json.Marshal(metrics)
@@ -105,10 +108,11 @@ func (sender *MetricSenderImpl) BuildBatchRequest(metrics []models.Metric) (*htt
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	return req, nil
-}
+	if key != "" {
+		h := hmac.New(sha256.New, []byte(key))
+		h.Write(compressedBody)
+		req.Header.Set("HashSHA256", hex.EncodeToString(h.Sum(nil)))
+	}
 
-// NotFoundError is a custom error type for handling 404 status codes.
-type NotFoundError struct {
-	Message string
+	return req, nil
 }

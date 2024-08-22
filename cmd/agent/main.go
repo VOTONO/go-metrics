@@ -22,8 +22,15 @@ func main() {
 	}
 	defer logger.Sync()
 
-	sugar := *logger.Sugar()
+	sugaredLogger := *logger.Sugar()
 	config := getConfig()
+
+	sugaredLogger.Infow("starting agent",
+		"address", config.address,
+		"pollInterval", config.pollInterval,
+		"reportInterval", config.reportInterval,
+		"secretKey", config.secretKey,
+	)
 
 	readTicker := time.NewTicker(time.Duration(config.pollInterval) * time.Second)
 	sendTicker := time.NewTicker(time.Duration(config.reportInterval) * time.Second)
@@ -32,7 +39,7 @@ func main() {
 		Timeout: 10 * time.Second,
 	}
 	metricReader := logic.NewMetricReaderImpl()
-	metricSender := network.New(client, config.address, &sugar)
+	metricSender := network.New(client, config.address, &sugaredLogger)
 	metricStorage := repo.New()
 
 	stop := make(chan os.Signal, 1)
@@ -49,7 +56,10 @@ func main() {
 			metricStorage.Set(metrics)
 		case <-sendTicker.C:
 			metrics := metricStorage.Get()
-			metricSender.Send(metrics)
+			err := metricSender.Send(metrics, config.secretKey)
+			if err != nil {
+				sugaredLogger.Errorw("send metrics failed", "error", err.Error())
+			}
 		}
 	}
 }

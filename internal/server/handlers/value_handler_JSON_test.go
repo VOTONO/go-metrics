@@ -32,7 +32,7 @@ func TestValueHandlerJSON(t *testing.T) {
 	metricStorer := mocks.NewMockMetricStorer(ctrl)
 
 	zapLogger := *logger.Sugar()
-	server := httptest.NewServer(router.Router(metricStorer, &sql.DB{}, &zapLogger))
+	server := httptest.NewServer(router.Router(metricStorer, &sql.DB{}, &zapLogger, ""))
 	defer server.Close()
 
 	tests := []struct {
