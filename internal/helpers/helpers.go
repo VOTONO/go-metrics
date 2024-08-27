@@ -1,11 +1,16 @@
 package helpers
 
 import (
+	"errors"
 	"fmt"
 	"html"
+	"os"
 	"sort"
 	"strconv"
+	"syscall"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
 
 	"github.com/VOTONO/go-metrics/internal/constants"
@@ -178,4 +183,14 @@ func LogMetric(message string, metric models.Metric, logger *zap.SugaredLogger) 
 		"metric_value", metric.Value,
 		"metric_delta", metric.Delta,
 	)
+}
+
+func DecideShouldRetryAfterError(err error) bool {
+	var pgErr *pgconn.PgError
+	var pathErr *os.PathError
+
+	isDBConnectionError := errors.As(err, &pgErr) && pgErr.Code == pgerrcode.ConnectionException
+	isFileBusyError := errors.As(err, &pathErr) && errors.Is(pathErr.Err, syscall.EBUSY)
+
+	return isDBConnectionError || isFileBusyError
 }

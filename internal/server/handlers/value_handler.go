@@ -2,17 +2,13 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/VOTONO/go-metrics/internal/helpers"
-	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
@@ -53,31 +49,4 @@ func ValueHandler(storer repo.MetricStorer) http.HandlerFunc {
 			return
 		}
 	}
-}
-
-func getMetricWithRetry(ctx context.Context, storer repo.MetricStorer, id string, retryCount int, initialPause time.Duration) (models.Metric, bool, error) {
-	retryPause := initialPause
-	var err error
-
-	for i := 0; i <= retryCount; i++ {
-		var metric models.Metric
-		var found bool
-		metric, found, err = storer.Get(ctx, id)
-
-		if err == nil {
-			return metric, found, nil
-		}
-
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.ConnectionException {
-			if i < retryCount {
-				time.Sleep(retryPause)
-				retryPause += 2
-			}
-		} else {
-			break
-		}
-	}
-
-	return models.Metric{}, false, err
 }

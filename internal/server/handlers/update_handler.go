@@ -2,13 +2,10 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/VOTONO/go-metrics/internal/models"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
@@ -38,30 +35,4 @@ func UpdateHandler(storer repo.MetricStorer) http.HandlerFunc {
 
 		res.WriteHeader(http.StatusOK)
 	}
-}
-
-// storeMetricsWithRetry handles the retry logic for storing a slice of metrics.
-func storeMetricWithRetry(ctx context.Context, storer repo.MetricStorer, metric models.Metric, retryCount int, initialPause time.Duration) (*models.Metric, error) {
-	retryPause := initialPause
-	var err error
-
-	for i := 0; i <= retryCount; i++ {
-		var storedMetric *models.Metric
-		storedMetric, err = storer.StoreSingle(ctx, metric)
-		if err == nil {
-			return storedMetric, nil // Success
-		}
-
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.ConnectionException {
-			if i < retryCount {
-				time.Sleep(retryPause)
-				retryPause *= 2
-			}
-		} else {
-			break
-		}
-	}
-
-	return nil, err
 }
