@@ -130,6 +130,37 @@ func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) 
 	return htmlString, nil
 }
 
+// ProcessMetricsDuplicates with the same ID and type
+func ProcessMetricsDuplicates(metrics []models.Metric) ([]models.Metric, error) {
+	metricMap := make(map[string]models.Metric)
+
+	for _, metric := range metrics {
+		key := metric.ID + "_" + metric.MType
+
+		if existingMetric, exists := metricMap[key]; exists {
+			switch metric.MType {
+			case constants.Gauge:
+				metricMap[key] = metric
+			case constants.Counter:
+				updatedMetric, err := UpdateCounterMetric(existingMetric, metric)
+				if err != nil {
+					return metrics, err
+				}
+				metricMap[key] = updatedMetric
+			default:
+				err := fmt.Errorf("unsupported Metric type: %s", metric.MType)
+				return nil, err
+			}
+
+		} else {
+			metricMap[key] = metric
+		}
+	}
+
+	slice := ConvertMapToSlice(metricMap)
+	return slice, nil
+}
+
 // ConvertMapToSlice converts a map[string]models.Metric to a slice of models.Metric.
 func ConvertMapToSlice(metricsMap map[string]models.Metric) []models.Metric {
 	metricsSlice := make([]models.Metric, 0, len(metricsMap))

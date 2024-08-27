@@ -40,7 +40,7 @@ func NewPostgresMetricStorer(logger *zap.SugaredLogger, db *sql.DB) (*PostgresMe
 }
 
 // StoreSingle inserts or updates a metric in the database
-func (p PostgresMetricStorer) StoreSingle(ctx context.Context, metric models.Metric) (*models.Metric, error) {
+func (p PostgresMetricStorer) StoreSingle(ctx context.Context, newMetric models.Metric) (*models.Metric, error) {
 
 	tx, txErr := p.db.Begin()
 	if txErr != nil {
@@ -48,238 +48,172 @@ func (p PostgresMetricStorer) StoreSingle(ctx context.Context, metric models.Met
 		return nil, txErr
 	}
 
-	switch metric.MType {
-	case constants.Gauge:
-		stmt, prepErr := tx.PrepareContext(ctx,
-			`
-            INSERT INTO metrics (id, mtype, delta, value)
-            VALUES ($1, $2, NULL, $3)
-            ON CONFLICT (id) DO UPDATE
-            SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;`)
-		if prepErr != nil {
-			p.logger.Errorw("failed to prepare statement", "err", prepErr.Error())
-			tx.Rollback()
-			return nil, prepErr
+	var updatedMetric *models.Metric
+	var err error
+	defer func() {
+		var deferErr error
+		if err != nil {
+			deferErr = tx.Rollback()
+		} else {
+			deferErr = tx.Commit()
 		}
-		defer stmt.Close()
+		if deferErr != nil {
+			p.logger.Errorw("failed to rollback or commit transaction", "err", deferErr.Error())
+		}
+	}()
 
-		rows, queryErr := stmt.QueryContext(ctx, metric.ID, metric.MType, metric.Value)
-		if queryErr != nil {
-			p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", queryErr.Error())
-			tx.Rollback()
-			return nil, queryErr
-		}
-		if rowsErr := rows.Err(); rowsErr != nil {
-			p.logger.Errorw("error during rows iteration", "error", rowsErr.Error())
-			tx.Rollback()
-			return nil, rowsErr
-		}
-		tx.Commit()
-		return &metric, nil
-	case constants.Counter:
-		stmtSelect, prepSelectErr := tx.PrepareContext(ctx, `SELECT id, mtype, delta FROM metrics WHERE id = $1;`)
-		if prepSelectErr != nil {
-			p.logger.Errorw("failed to prepare statement", "err", prepSelectErr.Error())
-			tx.Rollback()
-			return nil, prepSelectErr
-		}
-		defer stmtSelect.Close()
-
-		var existingMetric models.Metric
-
-		row := stmtSelect.QueryRowContext(ctx, metric.ID)
-
-		scanErr := row.Scan(&existingMetric.ID, &existingMetric.MType, &existingMetric.Delta)
-		if scanErr != nil {
-			if !errors.Is(scanErr, sql.ErrNoRows) {
-				p.logger.Errorw("error retrieving metric", "metric_id", metric.ID, "error", scanErr.Error())
-				tx.Rollback()
-				return nil, scanErr
-			}
-		}
-
-		newMetric, updateErr := helpers.UpdateCounterMetric(existingMetric, metric)
-		if updateErr != nil {
-			p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", updateErr.Error())
-			tx.Rollback()
-			return nil, updateErr
-		}
-
-		stmtInsert, prepInsertErr := tx.PrepareContext(ctx,
-			`INSERT INTO metrics (id, mtype, delta, value)
-					VALUES ($1, $2, $3, NULL)
-					ON CONFLICT (id) DO UPDATE
-					SET mtype = EXCLUDED.mtype, delta = EXCLUDED.delta;`)
-		if prepInsertErr != nil {
-			p.logger.Errorw("failed to prepare statement", "err", prepInsertErr.Error())
-			tx.Rollback()
-			return nil, prepInsertErr
-		}
-		defer stmtInsert.Close()
-
-		rows, queryInsertErr := stmtInsert.QueryContext(ctx, newMetric.ID, newMetric.MType, newMetric.Delta)
-		if queryInsertErr != nil {
-			p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", queryInsertErr.Error())
-			tx.Rollback()
-			return nil, queryInsertErr
-		}
-		if rowsErr := rows.Err(); rowsErr != nil {
-			p.logger.Errorw("error during rows iteration", "error", rowsErr.Error())
-			tx.Rollback()
-			return nil, rowsErr
-		}
-		tx.Commit()
-		return &newMetric, nil
-
-	default:
-		unsupportedErr := fmt.Errorf("unsupported Metric type: %s", metric.MType)
-		p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", unsupportedErr.Error())
-		tx.Rollback()
-		return nil, unsupportedErr
+	updatedMetric, err = p.insertOrUpdateMetric(ctx, tx, newMetric)
+	if err != nil {
+		return nil, err
 	}
+
+	return updatedMetric, nil
 }
 
 func (p PostgresMetricStorer) StoreSlice(ctx context.Context, newMetrics []models.Metric) error {
+	filteredMetrics, filterErr := helpers.ProcessMetricsDuplicates(newMetrics)
+	if filterErr != nil {
+		return filterErr
+	}
 	tx, txErr := p.db.Begin()
 	if txErr != nil {
 		p.logger.Errorw("failed to begin transaction", "err", txErr.Error())
 		return txErr
 	}
-	for _, metric := range newMetrics {
-		switch metric.MType {
-		case constants.Gauge:
-			stmt, prepErr := tx.PrepareContext(ctx,
-				`
-            INSERT INTO metrics (id, mtype, delta, value)
-            VALUES ($1, $2, NULL, $3)
-            ON CONFLICT (id) DO UPDATE
-            SET mtype = EXCLUDED.mtype, value = EXCLUDED.value;`)
-			if prepErr != nil {
-				p.logger.Errorw("failed to prepare statement", "err", prepErr.Error())
-				tx.Rollback()
-				return prepErr
-			}
+	var err error
+	defer func() {
+		var deferErr error
+		if err != nil {
+			deferErr = tx.Rollback()
+		} else {
+			deferErr = tx.Commit()
+		}
+		if deferErr != nil {
+			p.logger.Errorw("failed to rollback or commit transaction", "err", deferErr.Error())
+		}
+	}()
 
-			rows, queryErr := stmt.QueryContext(ctx, metric.ID, metric.MType, metric.Value)
-			if queryErr != nil {
-				p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", queryErr.Error())
-				tx.Rollback()
-				return queryErr
-			}
-			if rowsErr := rows.Err(); rowsErr != nil {
-				p.logger.Errorw("error during rows iteration", "error", rowsErr.Error())
-				tx.Rollback()
-				return rowsErr
-			}
-		case constants.Counter:
-			stmtSelect, prepSelectErr := tx.PrepareContext(ctx, `SELECT id, mtype, delta FROM metrics WHERE id = $1;`)
-			if prepSelectErr != nil {
-				p.logger.Errorw("failed to prepare statement", "err", prepSelectErr.Error())
-				tx.Rollback()
-				return prepSelectErr
-			}
-
-			var existingMetric models.Metric
-
-			row := stmtSelect.QueryRowContext(ctx, metric.ID)
-
-			scanErr := row.Scan(&existingMetric.ID, &existingMetric.MType, &existingMetric.Delta)
-			if scanErr != nil {
-				if !errors.Is(scanErr, sql.ErrNoRows) {
-					p.logger.Errorw("error retrieving metric", "metric_id", metric.ID, "error", scanErr.Error())
-					tx.Rollback()
-					return scanErr
-				}
-			}
-
-			newMetric, updateErr := helpers.UpdateCounterMetric(existingMetric, metric)
-			if updateErr != nil {
-				p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", updateErr.Error())
-				tx.Rollback()
-				return updateErr
-			}
-
-			stmtInsert, prepInsertErr := tx.PrepareContext(ctx,
-				`INSERT INTO metrics (id, mtype, delta, value)
-					VALUES ($1, $2, $3, NULL)
-					ON CONFLICT (id) DO UPDATE
-					SET mtype = EXCLUDED.mtype, delta = EXCLUDED.delta;`)
-			if prepInsertErr != nil {
-				p.logger.Errorw("failed to prepare statement", "err", prepInsertErr.Error())
-				tx.Rollback()
-				return prepInsertErr
-			}
-
-			rows, queryInsertErr := stmtInsert.QueryContext(ctx, newMetric.ID, newMetric.MType, newMetric.Delta)
-			if queryInsertErr != nil {
-				p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", queryInsertErr.Error())
-				tx.Rollback()
-				return queryInsertErr
-			}
-			if rowsErr := rows.Err(); rowsErr != nil {
-				p.logger.Errorw("error during rows iteration", "error", rowsErr.Error())
-				tx.Rollback()
-				return rowsErr
-			}
-
-		default:
-			unsupportedErr := fmt.Errorf("unsupported Metric type: %s", metric.MType)
-			p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", unsupportedErr.Error())
-			tx.Rollback()
-			return unsupportedErr
+	for _, newMetric := range filteredMetrics {
+		_, err = p.insertOrUpdateMetric(ctx, tx, newMetric)
+		if err != nil {
+			return err
 		}
 	}
 
-	tx.Commit()
 	return nil
+}
+
+func (p PostgresMetricStorer) insertOrUpdateMetric(ctx context.Context, tx *sql.Tx, newMetric models.Metric) (*models.Metric, error) {
+
+	switch newMetric.MType {
+	case constants.Gauge:
+		metric, err := p.insertMetric(ctx, tx, newMetric)
+		if err != nil {
+			return nil, err
+		}
+		return metric, nil
+	case constants.Counter:
+		updatedMetric, err := p.insertCounterMetric(ctx, newMetric, tx)
+		if err != nil {
+			return nil, err
+		}
+		return updatedMetric, nil
+
+	default:
+		err := fmt.Errorf("unsupported Metric type: %s", newMetric.MType)
+		p.logger.Errorw("error storing Metric", "metric_id", newMetric.ID, "error", err.Error())
+		return nil, err
+	}
+}
+
+func (p PostgresMetricStorer) insertCounterMetric(ctx context.Context, newMetric models.Metric, tx *sql.Tx) (*models.Metric, error) {
+	existingMetric, found, getErr := p.getMetricByID(ctx, newMetric.ID)
+	if getErr != nil {
+		return nil, getErr
+	}
+
+	var insertedMetric *models.Metric
+	var insertErr error
+
+	if !found {
+		insertedMetric, insertErr = p.insertMetric(ctx, tx, newMetric)
+		if insertErr != nil {
+			return nil, insertErr
+		}
+		return insertedMetric, nil
+	}
+
+	updatedMetric, updateErr := helpers.UpdateCounterMetric(existingMetric, newMetric)
+	if updateErr != nil {
+		p.logger.Errorw("error storing Metric", "metric_id", newMetric.ID, "error", updateErr.Error())
+		return nil, updateErr
+	}
+
+	insertedMetric, insertErr = p.insertMetric(ctx, tx, updatedMetric)
+	if insertErr != nil {
+		return nil, insertErr
+	}
+	return insertedMetric, nil
+}
+
+func (p PostgresMetricStorer) insertMetric(ctx context.Context, tx *sql.Tx, metric models.Metric) (*models.Metric, error) {
+	stmt, prepErr := tx.PrepareContext(ctx,
+		`
+            INSERT INTO metrics (id, mtype, delta, value)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (id) DO UPDATE
+            SET mtype = EXCLUDED.mtype, delta = EXCLUDED.delta, value = EXCLUDED.value;`)
+	if prepErr != nil {
+		p.logger.Errorw("failed to prepare statement", "err", prepErr.Error())
+		return nil, prepErr
+	}
+
+	rows, queryErr := stmt.QueryContext(ctx, metric.ID, metric.MType, metric.Delta, metric.Value)
+	if queryErr != nil {
+		p.logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", queryErr.Error())
+		return nil, queryErr
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		p.logger.Errorw("error during rows iteration", "error", rowsErr.Error())
+		return nil, rowsErr
+	}
+	return &metric, nil
 }
 
 // Get retrieves a metric by its ID from the database
 func (p PostgresMetricStorer) Get(ctx context.Context, id string) (models.Metric, bool, error) {
-	tx, txErr := p.db.Begin()
-	if txErr != nil {
-		p.logger.Errorw("failed to begin transaction", "err", txErr.Error())
-		return models.Metric{}, false, txErr
-	}
+	metric, found, getErr := p.getMetricByID(ctx, id)
+	return metric, found, getErr
+}
 
-	stmt, prepErr := tx.PrepareContext(ctx, `SELECT id, mtype, delta, value FROM metrics WHERE id = $1;`)
+func (p PostgresMetricStorer) getMetricByID(ctx context.Context, id string) (models.Metric, bool, error) {
+	var metric models.Metric
+
+	stmt, prepErr := p.db.PrepareContext(ctx, `SELECT id, mtype, delta, value FROM metrics WHERE id = $1;`)
 	if prepErr != nil {
 		p.logger.Errorw("failed to prepare statement", "err", prepErr.Error())
-		tx.Rollback()
-		return models.Metric{}, false, prepErr
+		return metric, false, prepErr
 	}
 	defer stmt.Close()
-
-	var metric models.Metric
 
 	row := stmt.QueryRowContext(ctx, id)
 
 	scanErr := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
 	if scanErr != nil {
 		if errors.Is(scanErr, sql.ErrNoRows) {
-			tx.Commit()
 			return metric, false, nil
 		}
 		p.logger.Errorw("error getting metric", "id", id, "error", scanErr.Error())
-		tx.Rollback()
 		return metric, false, scanErr
 	}
-
-	tx.Commit()
 	return metric, true, nil
 }
 
 func (p PostgresMetricStorer) All(ctx context.Context) (map[string]models.Metric, error) {
-	tx, txErr := p.db.Begin()
-	if txErr != nil {
-		p.logger.Errorw("failed to begin transaction", "err", txErr.Error())
-		return nil, txErr
-	}
 
-	stmt, prepErr := tx.PrepareContext(ctx, `SELECT id, mtype, delta, value FROM metrics;`)
+	stmt, prepErr := p.db.PrepareContext(ctx, `SELECT id, mtype, delta, value FROM metrics;`)
 	if prepErr != nil {
 		p.logger.Errorw("failed to prepare statement", "err", prepErr.Error())
-		tx.Rollback()
 		return nil, prepErr
 	}
 	defer stmt.Close()
@@ -287,7 +221,6 @@ func (p PostgresMetricStorer) All(ctx context.Context) (map[string]models.Metric
 	rows, queryErr := stmt.QueryContext(ctx)
 	if queryErr != nil {
 		p.logger.Errorw("error getting all metrics", "error", queryErr.Error())
-		tx.Rollback()
 		return nil, queryErr
 	}
 	defer rows.Close()
@@ -298,7 +231,6 @@ func (p PostgresMetricStorer) All(ctx context.Context) (map[string]models.Metric
 
 		if scanErr := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value); scanErr != nil {
 			p.logger.Errorw("error scanning metric row", "error", scanErr.Error())
-			tx.Rollback()
 			return nil, scanErr
 		}
 
@@ -307,10 +239,8 @@ func (p PostgresMetricStorer) All(ctx context.Context) (map[string]models.Metric
 
 	if rowsErr := rows.Err(); rowsErr != nil {
 		p.logger.Errorw("error during rows iteration", "error", rowsErr.Error())
-		tx.Rollback()
 		return nil, rowsErr
 	}
 
-	tx.Commit()
 	return metrics, nil
 }
