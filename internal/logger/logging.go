@@ -55,5 +55,5 @@ func WithLogger(h http.Handler, s *zap.SugaredLogger) http.HandlerFunc {
 		)
 
 	}
-	return http.HandlerFunc(logFn)
+	return logFn
 }
