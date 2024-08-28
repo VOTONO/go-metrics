@@ -11,7 +11,8 @@ const (
 	defaultAddress        = "localhost:8080"
 	defaultPollInterval   = 2
 	defaultReportInterval = 10
-	defaltSecretKey       = ""
+	defaultSecretKey      = ""
+	defaultRateLimit      = 3
 )
 
 type Config struct {
@@ -19,6 +20,7 @@ type Config struct {
 	pollInterval   int
 	reportInterval int
 	secretKey      string
+	rateLimit      int
 }
 
 func getConfig() Config {
@@ -26,7 +28,8 @@ func getConfig() Config {
 		address:        defaultAddress,
 		pollInterval:   defaultPollInterval,
 		reportInterval: defaultReportInterval,
-		secretKey:      defaltSecretKey,
+		secretKey:      defaultSecretKey,
+		rateLimit:      defaultRateLimit,
 	}
 
 	if address, ok := os.LookupEnv("ADDRESS"); ok {
@@ -53,11 +56,20 @@ func getConfig() Config {
 		config.secretKey = secretKey
 	}
 
+	if rateLimit, ok := os.LookupEnv("RATE_LIMIT"); ok {
+		if val, err := strconv.Atoi(rateLimit); err == nil {
+			config.rateLimit = val
+		} else {
+			fmt.Printf("Invalid RATE_LIMIT value: %v\n", rateLimit)
+		}
+	}
+
 	// Parse flags
 	addressFlag := flag.String("a", config.address, fmt.Sprintf("Address to bind to (default: %s)", defaultAddress))
 	pollIntervalFlag := flag.Int("p", config.pollInterval, fmt.Sprintf("Poll interval in seconds (default: %d)", defaultPollInterval))
 	reportIntervalFlag := flag.Int("r", config.reportInterval, fmt.Sprintf("Report interval in seconds (default: %d)", defaultReportInterval))
-	secretKeyFlag := flag.String("k", config.secretKey, fmt.Sprintf("Secret key (default: %s)", defaltSecretKey))
+	secretKeyFlag := flag.String("k", config.secretKey, fmt.Sprintf("Secret key (default: %s)", defaultSecretKey))
+	rateLimitFlag := flag.Int("l", config.rateLimit, fmt.Sprintf("Rate limit key (default: %d)", defaultRateLimit))
 	flag.Parse()
 
 	// Override with command-line flags if provided
@@ -65,6 +77,7 @@ func getConfig() Config {
 	config.pollInterval = *pollIntervalFlag
 	config.reportInterval = *reportIntervalFlag
 	config.secretKey = *secretKeyFlag
+	config.rateLimit = *rateLimitFlag
 
 	return config
 }
