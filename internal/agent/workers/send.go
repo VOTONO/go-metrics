@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -24,16 +25,17 @@ type SendWorker struct {
 	ticker       *time.Ticker
 	address      string
 	stopChannel  chan struct{}
-	inputChannel chan []models.Metric
+	inputChannel <-chan []models.Metric
 	semaphore    *semaphore.Semaphore
 	secretKey    string
+	waitGroup    sync.WaitGroup
 }
 
 func NewSendWorker(
 	client *http.Client,
 	logger *zap.SugaredLogger,
 	interval int,
-	inputChannel chan []models.Metric,
+	inputChannel <-chan []models.Metric,
 	rateLimit int,
 	address string,
 	secretKey string) *SendWorker {
@@ -46,6 +48,7 @@ func NewSendWorker(
 		semaphore:    semaphore.NewSemaphore(rateLimit),
 		address:      address,
 		secretKey:    secretKey,
+		waitGroup:    sync.WaitGroup{},
 	}
 }
 
@@ -56,6 +59,7 @@ func (w *SendWorker) Start() {
 		case <-w.stopChannel:
 			w.logger.Info("stopping send worker")
 			w.ticker.Stop()
+			w.waitGroup.Wait()
 			return
 		case metrics := <-w.inputChannel:
 			go w.send(metrics)
@@ -101,6 +105,9 @@ func (w *SendWorker) buildRequest(metrics []models.Metric) (*http.Request, error
 
 // send metrics to the server.
 func (w *SendWorker) send(metrics []models.Metric) error {
+	w.waitGroup.Add(1)
+	defer w.waitGroup.Done()
+
 	req, buildReqErr := w.buildRequest(metrics)
 	if buildReqErr != nil {
 		return fmt.Errorf("failed to build batch request: %s", buildReqErr.Error())
