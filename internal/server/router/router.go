@@ -7,18 +7,21 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/auth"
 	"github.com/VOTONO/go-metrics/internal/compressor"
 	"github.com/VOTONO/go-metrics/internal/logger"
 	"github.com/VOTONO/go-metrics/internal/server/handlers"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
-func Router(s repo.MetricStorer, db *sql.DB, zap *zap.SugaredLogger) chi.Router {
+func Router(s repo.MetricStorer, db *sql.DB, zap *zap.SugaredLogger, secretKey string) chi.Router {
 	router := chi.NewRouter()
 
 	router.Use(middleware.Recoverer)
+	router.Use(auth.HashChecker(secretKey))
 	router.Use(compressor.Compressor)
 	router.Use(compressor.Decompressor)
+	router.Use(auth.HashSigner(secretKey))
 
 	router.Get("/", logger.WithLogger(handlers.AllValueHandler(s, zap), zap))
 	router.Get("/ping", logger.WithLogger(handlers.Ping(db), zap))

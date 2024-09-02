@@ -13,6 +13,7 @@ const (
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestore         = true
+	defaultSecretKey       = ""
 )
 
 type Config struct {
@@ -21,6 +22,7 @@ type Config struct {
 	storeInterval   int
 	fileStoragePath string
 	restore         bool
+	secretKey       string
 }
 
 func getConfig() Config {
@@ -30,6 +32,7 @@ func getConfig() Config {
 		storeInterval:   defaultStoreInterval,
 		fileStoragePath: defaultFileStoragePath,
 		restore:         defaultRestore,
+		secretKey:       defaultSecretKey,
 	}
 
 	// Parse flags
@@ -38,6 +41,7 @@ func getConfig() Config {
 	storeIntervalFlag := flag.Int("i", config.storeInterval, fmt.Sprintf("StoreSingle interval in seconds (default: %d)", defaultStoreInterval))
 	fileStoragePathFlag := flag.String("f", config.fileStoragePath, fmt.Sprintf("File storage path (default: %s)", defaultFileStoragePath))
 	restoreFlag := flag.Bool("r", config.restore, fmt.Sprintf("Restore from file storage (default: %t)", defaultRestore))
+	secretKeyFlag := flag.String("k", config.secretKey, fmt.Sprintf("Secret key (default: %s)", defaultSecretKey))
 	flag.Parse()
 
 	// Override with command-line flags if provided
@@ -46,6 +50,7 @@ func getConfig() Config {
 	config.storeInterval = *storeIntervalFlag
 	config.fileStoragePath = *fileStoragePathFlag
 	config.restore = *restoreFlag
+	config.secretKey = *secretKeyFlag
 
 	// Override with environment variables if they exist
 	if address, ok := os.LookupEnv("ADDRESS"); ok {
@@ -66,6 +71,9 @@ func getConfig() Config {
 		if b, err := strconv.ParseBool(restore); err == nil {
 			config.restore = b
 		}
+	}
+	if secretKey, ok := os.LookupEnv("KEY"); ok {
+		config.secretKey = secretKey
 	}
 
 	return config

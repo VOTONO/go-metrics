@@ -3,16 +3,13 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/VOTONO/go-metrics/internal/agent/logic"
-	"github.com/VOTONO/go-metrics/internal/agent/network"
-	"github.com/VOTONO/go-metrics/internal/agent/repo"
+	"github.com/VOTONO/go-metrics/internal/agent/helpers"
+	"github.com/VOTONO/go-metrics/internal/agent/workers"
+	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 func main() {
@@ -22,34 +19,49 @@ func main() {
 	}
 	defer logger.Sync()
 
-	sugar := *logger.Sugar()
+	sugaredLogger := logger.Sugar()
 	config := getConfig()
 
-	readTicker := time.NewTicker(time.Duration(config.pollInterval) * time.Second)
-	sendTicker := time.NewTicker(time.Duration(config.reportInterval) * time.Second)
+	sugaredLogger.Infow("starting agent",
+		"address", config.address,
+		"pollInterval", config.pollInterval,
+		"reportInterval", config.reportInterval,
+		"secretKey", config.secretKey,
+	)
+
+	stopChannel := helpers.CreateSystemStopChannel()
+	readResultChannel := make(chan []models.Metric, 1)
+
+	readWorker := workers.NewReadWorker(
+		sugaredLogger,
+		readResultChannel,
+		config.pollInterval,
+	)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	metricReader := logic.NewMetricReaderImpl()
-	metricSender := network.New(client, config.address, &sugar)
-	metricStorage := repo.New()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	sendWorker := workers.NewSendWorker(
+		client,
+		sugaredLogger,
+		config.reportInterval,
+		readResultChannel,
+		config.rateLimit,
+		config.address,
+		config.secretKey,
+	)
 
-	for {
-		select {
-		case <-stop:
-			readTicker.Stop()
-			sendTicker.Stop()
-			return
-		case <-readTicker.C:
-			metrics := metricReader.Read()
-			metricStorage.Set(metrics)
-		case <-sendTicker.C:
-			metrics := metricStorage.Get()
-			metricSender.Send(metrics)
-		}
-	}
+	go func() {
+		readWorker.Start()
+	}()
+
+	go func() {
+		sendWorker.Start()
+	}()
+
+	<-stopChannel
+	logger.Info("stopping agent")
+	readWorker.Stop()
+	sendWorker.Stop()
 }

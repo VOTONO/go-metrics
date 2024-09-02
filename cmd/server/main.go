@@ -32,7 +32,7 @@ func main() {
 		log.Fatalf("can't initialize metric storer: %v", err)
 	}
 	defer db.Close()
-	rout := router.Router(storer, db, &zapLogger)
+	rout := router.Router(storer, db, &zapLogger, config.secretKey)
 
 	zapLogger.Infow(
 		"Starting server",
@@ -41,6 +41,7 @@ func main() {
 		"fileStoragePath", config.fileStoragePath,
 		"storeInterval", config.storeInterval,
 		"restore", config.restore,
+		"key", config.secretKey,
 	)
 
 	httpServer := &http.Server{
@@ -54,7 +55,7 @@ func main() {
 	go func() {
 		<-ctx.Done()
 		zapLogger.Infow("Shutting down server")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
 		metrics, err := storer.All(shutdownCtx)

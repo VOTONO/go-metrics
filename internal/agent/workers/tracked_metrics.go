@@ -1,4 +1,4 @@
-package logic
+package workers
 
 const (
 	PollCount     = "PollCount"
@@ -30,4 +30,7 @@ const (
 	StackSys      = "StackSys"
 	Sys           = "Sys"
 	TotalAlloc    = "TotalAlloc"
+	TotalMemory   = "TotalMemory"
+	FreeMemory    = "FreeMemory"
+	UsedMemory    = "UsedMemory"
 )
