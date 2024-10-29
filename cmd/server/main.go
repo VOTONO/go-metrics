@@ -1,3 +1,4 @@
+// Server for storing metrics.
 package main
 
 import (

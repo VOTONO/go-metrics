@@ -19,6 +19,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
+// SendWorker sends metrics from inputChannel to the server.
 type SendWorker struct {
 	client       *http.Client
 	logger       *zap.SugaredLogger
@@ -52,21 +53,23 @@ func NewSendWorker(
 	}
 }
 
+// Start listening input channel.
 func (w *SendWorker) Start() {
-	w.logger.Info("starting send worker")
+	w.logger.Info("starting sendWithRetry worker")
 	for {
 		select {
-		case <-w.stopChannel:
-			w.logger.Info("stopping send worker")
+		case <-w.stopChannel: // Stops ticker and wait all workers before stop.
+			w.logger.Info("stopping sendWithRetry worker")
 			w.ticker.Stop()
 			w.waitGroup.Wait()
 			return
-		case metrics := <-w.inputChannel:
-			go w.send(metrics)
+		case metrics := <-w.inputChannel: // Sends metrics to server.
+			go w.sendWithRetry(metrics)
 		}
 	}
 }
 
+// Stop close stop channel.
 func (w *SendWorker) Stop() {
 	close(w.stopChannel)
 }
@@ -103,8 +106,8 @@ func (w *SendWorker) buildRequest(metrics []models.Metric) (*http.Request, error
 	return req, nil
 }
 
-// send metrics to the server.
-func (w *SendWorker) send(metrics []models.Metric) error {
+// sendWithRetry metrics to the server.
+func (w *SendWorker) sendWithRetry(metrics []models.Metric) error {
 	w.waitGroup.Add(1)
 	defer w.waitGroup.Done()
 
@@ -140,7 +143,7 @@ func (w *SendWorker) sendRequest(req *http.Request) error {
 
 	resp, err := w.client.Do(req)
 	if err != nil {
-		w.logger.Errorw("Failed to send batch request", "error", err)
+		w.logger.Errorw("Failed to sendWithRetry batch request", "error", err)
 		return fmt.Errorf("error sending batch request for metrics: %w", err)
 	}
 	defer func() {

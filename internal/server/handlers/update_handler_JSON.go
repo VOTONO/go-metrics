@@ -12,6 +12,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
+// UpdateHandlerJSON retrieve metric from body in JSON format and updates it in storage.
 func UpdateHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metric models.Metric

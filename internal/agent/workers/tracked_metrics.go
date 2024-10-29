@@ -1,5 +1,6 @@
 package workers
 
+// Names of tracked metrics.
 const (
 	PollCount     = "PollCount"
 	RandomValue   = "RandomValue"

@@ -46,14 +46,13 @@ func WithLogger(h http.Handler, s *zap.SugaredLogger) http.HandlerFunc {
 
 		duration := time.Since(start)
 
-		s.Infoln(
+		s.Infow("Request",
 			"uri", r.RequestURI,
 			"method", r.Method,
 			"duration", duration,
 			"status", responseData.status,
 			"size", responseData.size,
 		)
-
 	}
 	return logFn
 }

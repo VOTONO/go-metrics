@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"io"
 	"net/http"
+
+	"github.com/VOTONO/go-metrics/internal/constants"
 )
 
+// HashChecker returns a middleware that checks sha256 hash using given key if HashSHA256 header exists.
 func HashChecker(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +20,7 @@ func HashChecker(key string) func(http.Handler) http.Handler {
 				return
 			}
 
-			hashData, err := hex.DecodeString(r.Header.Get("HashSHA256"))
+			hashData, err := hex.DecodeString(r.Header.Get(constants.HashSHA256))
 			if err != nil {
 				http.Error(w, "Invalid hash format", http.StatusBadRequest)
 				return

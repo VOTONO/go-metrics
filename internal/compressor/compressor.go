@@ -1,3 +1,4 @@
+// Package compressor contains middlewares for compress and decompress requests and response.
 package compressor
 
 import (
@@ -24,6 +25,7 @@ func (w gzipResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
+// Compressor returns a middleware that compress response body if Accept-Encoding header exists.
 func Compressor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
@@ -42,6 +44,7 @@ func Compressor(next http.Handler) http.Handler {
 	})
 }
 
+// Decompressor returns a middleware that decompress request body if Content-Encoding header exists.
 func Decompressor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {

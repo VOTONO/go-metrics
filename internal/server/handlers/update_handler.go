@@ -11,6 +11,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
+// UpdateHandler retrieve metric from URLParams and updates it in storage.
 func UpdateHandler(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 

@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
+
+	"github.com/VOTONO/go-metrics/internal/constants"
 )
 
 // ResponseCapture wraps an http.ResponseWriter to capture response data.
@@ -47,7 +49,7 @@ func HashSigner(key string) func(http.Handler) http.Handler {
 			hashString := hex.EncodeToString(computedHash)
 
 			// Set the computed hash in the header of the original ResponseWriter
-			w.Header().Set("HashSHA256", hashString)
+			w.Header().Set(constants.HashSHA256, hashString)
 		})
 	}
 }

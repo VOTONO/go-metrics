@@ -1,3 +1,4 @@
+// Package helpers contains common functions.
 package helpers
 
 import (
@@ -18,7 +19,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
-// ExtractValue converts metric value to a string based on its type
+// ExtractValue converts metric value to a string based on its type.
 func ExtractValue(m models.Metric) (string, error) {
 	switch m.MType {
 	case constants.Gauge:
@@ -36,7 +37,7 @@ func ExtractValue(m models.Metric) (string, error) {
 	}
 }
 
-// ValidateMetric checks if a metric is valid based on its type and fields
+// ValidateMetric checks if a metric is valid based on its type and fields.
 func ValidateMetric(m models.Metric) bool {
 	if m.ID == "" {
 		return false
@@ -58,7 +59,7 @@ func UpdateCounterMetric(old, new models.Metric) (models.Metric, error) {
 	return new, nil
 }
 
-// UpdateMetricInMap updates a metric in the given map, creating or updating as needed
+// UpdateMetricInMap updates a metric in the given map, creating or updating as needed.
 func UpdateMetricInMap(metrics map[string]models.Metric, metric models.Metric, logger *zap.SugaredLogger) (models.Metric, error) {
 	if metric.MType == constants.Gauge {
 		metrics[metric.ID] = metric
@@ -84,7 +85,7 @@ func UpdateMetricInMap(metrics map[string]models.Metric, metric models.Metric, l
 	return models.Metric{}, err
 }
 
-// MetricsToHTML generates an HTML table of metrics, using a builder for performance
+// MetricsToHTML generates an HTML table of metrics, using a builder for performance.
 func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) (string, error) {
 	keys := make([]string, 0, len(metrics))
 	for key := range metrics {
@@ -109,7 +110,7 @@ func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) 
 	return htmlBuilder.String(), nil
 }
 
-// ProcessMetricsDuplicates consolidates duplicate metrics in a slice by ID and type
+// ProcessMetricsDuplicates consolidates duplicate metrics in a slice by ID and type.
 func ProcessMetricsDuplicates(metrics []models.Metric) ([]models.Metric, error) {
 	metricMap := make(map[string]models.Metric)
 
@@ -130,7 +131,7 @@ func ProcessMetricsDuplicates(metrics []models.Metric) ([]models.Metric, error) 
 	return ConvertMapToSlice(metricMap), nil
 }
 
-// ConvertMapToSlice converts a map to a slice of metrics
+// ConvertMapToSlice converts a map to a slice of metrics.
 func ConvertMapToSlice(metricsMap map[string]models.Metric) []models.Metric {
 	metricsSlice := make([]models.Metric, 0, len(metricsMap))
 	for _, metric := range metricsMap {
@@ -139,7 +140,7 @@ func ConvertMapToSlice(metricsMap map[string]models.Metric) []models.Metric {
 	return metricsSlice
 }
 
-// LogMetric logs a metric's details
+// LogMetric logs metric details.
 func LogMetric(message string, metric models.Metric, logger *zap.SugaredLogger) {
 	logger.Infow(
 		message,

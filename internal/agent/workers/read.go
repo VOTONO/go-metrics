@@ -13,6 +13,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
+// ReadWorker periodically read runtimes metrics and sendWithRetry it to result channel.
 type ReadWorker struct {
 	logger        *zap.SugaredLogger
 	ticker        *time.Ticker
@@ -31,6 +32,7 @@ func NewReadWorker(logger *zap.SugaredLogger, resultChannel chan []models.Metric
 	}
 }
 
+// Start read metrics.
 func (w *ReadWorker) Start() {
 	w.logger.Infow("starting readRuntimeMetrics worker")
 	for {
@@ -48,10 +50,12 @@ func (w *ReadWorker) Start() {
 	}
 }
 
+// Stop work and close channels.
 func (w *ReadWorker) Stop() {
 	close(w.stopChannel)
 }
 
+// readMemoryMetrics reads metrics from mem package.
 func (w *ReadWorker) readMemoryMetrics() []models.Metric {
 	virtualMemory, _ := mem.VirtualMemory()
 	var metrics []models.Metric
@@ -67,6 +71,7 @@ func (w *ReadWorker) readMemoryMetrics() []models.Metric {
 	return metrics
 }
 
+// readRuntimeMetrics reads metrics from runtime package.
 func (w *ReadWorker) readRuntimeMetrics() []models.Metric {
 	var metrics []models.Metric
 

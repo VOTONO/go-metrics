@@ -12,6 +12,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
+// ReadFile reads all metrics from file.
 func ReadFile(file string, logger *zap.SugaredLogger) (map[string]models.Metric, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -53,6 +54,7 @@ func RewriteFile(file string, metrics map[string]models.Metric, logger *zap.Suga
 	return nil
 }
 
+// AddToFile reads file, updates it with given metric and saves changes.
 func AddToFile(file string, metric models.Metric, logger *zap.SugaredLogger) (models.Metric, error) {
 	metrics, err := ReadFile(file, logger)
 
@@ -74,6 +76,7 @@ func AddToFile(file string, metric models.Metric, logger *zap.SugaredLogger) (mo
 	return updated, nil
 }
 
+// StartWriting starts goroutine that's periodically saves metrics to file.
 func StartWriting(ctx context.Context, storer MetricStorer, logger *zap.SugaredLogger, storeInterval int, filePath string) {
 	if storeInterval <= 0 || filePath == "" {
 		logger.Infow("skip periodical writing to file", "file", filePath, "interval", storeInterval)

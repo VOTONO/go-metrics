@@ -13,6 +13,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
+// PostgresMetricStorer implementation of MetricStorer interface. Stores all metrics in sql.DB.
 type PostgresMetricStorer struct {
 	logger *zap.SugaredLogger
 	db     *sql.DB

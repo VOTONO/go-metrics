@@ -11,6 +11,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
+// BatchUpdateHandler receives array of metrics in JSON format and updates storage with them.
 func BatchUpdateHandler(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metrics []models.Metric

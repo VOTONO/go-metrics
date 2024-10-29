@@ -12,6 +12,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
+// AllValueHandler returns all metrics in HTML format.
 func AllValueHandler(storer repo.MetricStorer, logger *zap.SugaredLogger) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 
