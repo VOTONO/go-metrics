@@ -22,9 +22,9 @@ func BatchUpdateHandler(storer repo.MetricStorer) http.HandlerFunc {
 			return
 		}
 
-		umarshalErr := json.Unmarshal(buf.Bytes(), &metrics)
-		if umarshalErr != nil {
-			http.Error(res, umarshalErr.Error(), http.StatusBadRequest)
+		unmarshalErr := json.Unmarshal(buf.Bytes(), &metrics)
+		if unmarshalErr != nil {
+			http.Error(res, unmarshalErr.Error(), http.StatusBadRequest)
 			return
 		}
 

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"go.uber.org/zap"
@@ -51,6 +52,13 @@ func main() {
 		config.address,
 		config.secretKey,
 	)
+
+	go func() {
+		err := http.ListenAndServe(":9191", nil)
+		if err != nil {
+			sugaredLogger.Errorw("Fail start agent", "error", err)
+		}
+	}()
 
 	go func() {
 		readWorker.Start()

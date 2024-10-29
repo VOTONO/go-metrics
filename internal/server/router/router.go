@@ -2,6 +2,8 @@ package router
 
 import (
 	"database/sql"
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -23,6 +25,7 @@ func Router(s repo.MetricStorer, db *sql.DB, zap *zap.SugaredLogger, secretKey s
 	router.Use(compressor.Decompressor)
 	router.Use(auth.HashSigner(secretKey))
 
+	// Your existing application routes
 	router.Get("/", logger.WithLogger(handlers.AllValueHandler(s, zap), zap))
 	router.Get("/ping", logger.WithLogger(handlers.Ping(db), zap))
 	router.Post("/update/", logger.WithLogger(handlers.UpdateHandlerJSON(s), zap))
@@ -30,5 +33,9 @@ func Router(s repo.MetricStorer, db *sql.DB, zap *zap.SugaredLogger, secretKey s
 	router.Post("/value/", logger.WithLogger(handlers.ValueHandlerJSON(s), zap))
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogger(handlers.UpdateHandler(s), zap))
 	router.Get("/value/{metricType}/{metricName}", handlers.ValueHandler(s))
+
+	// Mount pprof routes directly
+	router.Mount("/debug/pprof/", http.DefaultServeMux)
+
 	return router
 }

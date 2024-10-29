@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/jackc/pgerrcode"
@@ -17,101 +18,73 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
+// ExtractValue converts metric value to a string based on its type
 func ExtractValue(m models.Metric) (string, error) {
-	var value string
-
 	switch m.MType {
 	case constants.Gauge:
 		if m.Value != nil {
-			value = strconv.FormatFloat(*m.Value, 'f', -1, 64)
-		} else {
-			return "", fmt.Errorf("metric value not found")
+			return strconv.FormatFloat(*m.Value, 'f', -1, 64), nil
 		}
+		return "", errors.New("metric value not found")
 	case constants.Counter:
 		if m.Delta != nil {
-			value = strconv.FormatInt(*m.Delta, 10)
-		} else {
-			return "", fmt.Errorf("metric delta not found")
+			return strconv.FormatInt(*m.Delta, 10), nil
 		}
+		return "", errors.New("metric delta not found")
 	default:
-		return "", fmt.Errorf("unknown metric type")
+		return "", errors.New("unknown metric type")
 	}
-	return value, nil
 }
 
+// ValidateMetric checks if a metric is valid based on its type and fields
 func ValidateMetric(m models.Metric) bool {
 	if m.ID == "" {
 		return false
 	}
-	switch m.MType {
-	case constants.Gauge:
-		if m.Value == nil {
-			return false
-		}
-		return true
-	case constants.Counter:
-		if m.Delta == nil {
-			return false
-		}
-		return true
-	default:
-		return false
-	}
+	return (m.MType == constants.Gauge && m.Value != nil) ||
+		(m.MType == constants.Counter && m.Delta != nil)
 }
 
-func UpdateCounterMetric(old models.Metric, new models.Metric) (models.Metric, error) {
-	oldValid := ValidateMetric(old)
-	newValid := ValidateMetric(new)
-
-	if !oldValid && newValid {
-		return new, nil
+// UpdateCounterMetric aggregates Counter metrics
+func UpdateCounterMetric(old, new models.Metric) (models.Metric, error) {
+	if old.ID != new.ID || old.MType != constants.Counter || new.MType != constants.Counter {
+		return old, errors.New("metric mismatch")
 	}
-
-	if old.ID != new.ID {
-		return old, fmt.Errorf("metrics have different names")
-	}
-	if old.MType != constants.Counter || new.MType != constants.Counter {
-		return old, fmt.Errorf("metric type mismatch")
-	}
-
 	if old.Delta == nil || new.Delta == nil {
-		return old, fmt.Errorf("metric delta mismatch")
+		return old, errors.New("metric delta missing")
 	}
-
 	newDelta := *old.Delta + *new.Delta
 	new.Delta = &newDelta
-
 	return new, nil
 }
 
-// UpdateMetricInMap update given metrics map with given metric
+// UpdateMetricInMap updates a metric in the given map, creating or updating as needed
 func UpdateMetricInMap(metrics map[string]models.Metric, metric models.Metric, logger *zap.SugaredLogger) (models.Metric, error) {
-	switch metric.MType {
-	case constants.Gauge:
-		(metrics)[metric.ID] = metric
+	if metric.MType == constants.Gauge {
+		metrics[metric.ID] = metric
 		return metric, nil
-	case constants.Counter:
-		if existingMetric, found := (metrics)[metric.ID]; found {
-			updatedMetric, err := UpdateCounterMetric(existingMetric, metric)
+	}
 
+	if metric.MType == constants.Counter {
+		if existingMetric, found := metrics[metric.ID]; found {
+			updatedMetric, err := UpdateCounterMetric(existingMetric, metric)
 			if err != nil {
 				logger.Errorw("fail to update counter Metric", "metric_id", metric.ID, "error", err.Error())
 				return models.Metric{}, err
 			}
-
-			(metrics)[metric.ID] = updatedMetric
+			metrics[metric.ID] = updatedMetric
 			return updatedMetric, nil
-		} else {
-			(metrics)[metric.ID] = metric
-			return metric, nil
 		}
-	default:
-		err := fmt.Errorf("unsupported Metric type: %s", metric.MType)
-		logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", err.Error())
-		return models.Metric{}, err
+		metrics[metric.ID] = metric
+		return metric, nil
 	}
+
+	err := fmt.Errorf("unsupported Metric type: %s", metric.MType)
+	logger.Errorw("error storing Metric", "metric_id", metric.ID, "error", err.Error())
+	return models.Metric{}, err
 }
 
+// MetricsToHTML generates an HTML table of metrics, using a builder for performance
 func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) (string, error) {
 	keys := make([]string, 0, len(metrics))
 	for key := range metrics {
@@ -119,7 +92,9 @@ func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) 
 	}
 	sort.Strings(keys)
 
-	htmlString := "<html><body><h1>Metrics</h1><table border='1'><tr><th>Metric</th><th>Value</th></tr>"
+	var htmlBuilder strings.Builder
+	htmlBuilder.WriteString("<html><body><h1>Metrics</h1><table border='1'><tr><th>Metric</th><th>Value</th></tr>")
+
 	for _, key := range keys {
 		metric := metrics[key]
 		value, err := ExtractValue(metric)
@@ -127,46 +102,35 @@ func MetricsToHTML(metrics map[string]models.Metric, logger *zap.SugaredLogger) 
 			logger.Errorw("Invalid metric value", "metric_id", key, "error", err)
 			return "", fmt.Errorf("invalid metric value for metric %s: %w", key, err)
 		}
-
-		htmlString += fmt.Sprintf("<tr><td>%s</td><td>%v</td></tr>", html.EscapeString(key), html.EscapeString(fmt.Sprintf("%v", value)))
+		htmlBuilder.WriteString(fmt.Sprintf("<tr><td>%s</td><td>%v</td></tr>", html.EscapeString(key), html.EscapeString(value)))
 	}
 
-	htmlString += "</table></body></html>"
-	return htmlString, nil
+	htmlBuilder.WriteString("</table></body></html>")
+	return htmlBuilder.String(), nil
 }
 
-// ProcessMetricsDuplicates with the same ID and type
+// ProcessMetricsDuplicates consolidates duplicate metrics in a slice by ID and type
 func ProcessMetricsDuplicates(metrics []models.Metric) ([]models.Metric, error) {
 	metricMap := make(map[string]models.Metric)
 
 	for _, metric := range metrics {
 		key := metric.ID + "_" + metric.MType
 
-		if existingMetric, exists := metricMap[key]; exists {
-			switch metric.MType {
-			case constants.Gauge:
-				metricMap[key] = metric
-			case constants.Counter:
-				updatedMetric, err := UpdateCounterMetric(existingMetric, metric)
-				if err != nil {
-					return metrics, err
-				}
-				metricMap[key] = updatedMetric
-			default:
-				err := fmt.Errorf("unsupported Metric type: %s", metric.MType)
-				return nil, err
+		if existingMetric, exists := metricMap[key]; exists && metric.MType == constants.Counter {
+			updatedMetric, err := UpdateCounterMetric(existingMetric, metric)
+			if err != nil {
+				return metrics, err
 			}
-
+			metricMap[key] = updatedMetric
 		} else {
 			metricMap[key] = metric
 		}
 	}
 
-	slice := ConvertMapToSlice(metricMap)
-	return slice, nil
+	return ConvertMapToSlice(metricMap), nil
 }
 
-// ConvertMapToSlice converts a map[string]models.Metric to a slice of models.Metric.
+// ConvertMapToSlice converts a map to a slice of metrics
 func ConvertMapToSlice(metricsMap map[string]models.Metric) []models.Metric {
 	metricsSlice := make([]models.Metric, 0, len(metricsMap))
 	for _, metric := range metricsMap {
@@ -175,6 +139,7 @@ func ConvertMapToSlice(metricsMap map[string]models.Metric) []models.Metric {
 	return metricsSlice
 }
 
+// LogMetric logs a metric's details
 func LogMetric(message string, metric models.Metric, logger *zap.SugaredLogger) {
 	logger.Infow(
 		message,
@@ -185,12 +150,11 @@ func LogMetric(message string, metric models.Metric, logger *zap.SugaredLogger) 
 	)
 }
 
+// DecideShouldRetryAfterError checks if an error is retryable (database or file-related)
 func DecideShouldRetryAfterError(err error) bool {
 	var pgErr *pgconn.PgError
 	var pathErr *os.PathError
 
-	isDBConnectionError := errors.As(err, &pgErr) && pgErr.Code == pgerrcode.ConnectionException
-	isFileBusyError := errors.As(err, &pathErr) && errors.Is(pathErr.Err, syscall.EBUSY)
-
-	return isDBConnectionError || isFileBusyError
+	return (errors.As(err, &pgErr) && pgErr.Code == pgerrcode.ConnectionException) ||
+		(errors.As(err, &pathErr) && errors.Is(pathErr.Err, syscall.EBUSY))
 }

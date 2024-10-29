@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os/signal"
 	"syscall"
 	"time"
@@ -87,6 +88,7 @@ func main() {
 			"error", err,
 		)
 	}
+
 }
 
 func createStorer(logger *zap.SugaredLogger, config Config) (repo.MetricStorer, *sql.DB, error) {

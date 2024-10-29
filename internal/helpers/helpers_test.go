@@ -221,3 +221,106 @@ func TestMetricsToHTML(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkExtractValue(b *testing.B) {
+	metricGauge := models.Metric{
+		ID:    "gaugeMetric",
+		MType: constants.Gauge,
+		Value: float64Ptr(123.456),
+	}
+
+	metricCounter := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(789),
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, _ = ExtractValue(metricGauge)
+		_, _ = ExtractValue(metricCounter)
+	}
+}
+
+func BenchmarkValidateMetric(b *testing.B) {
+	metricGauge := models.Metric{
+		ID:    "gaugeMetric",
+		MType: constants.Gauge,
+		Value: float64Ptr(123.456),
+	}
+
+	metricCounter := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(789),
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = ValidateMetric(metricGauge)
+		_ = ValidateMetric(metricCounter)
+	}
+}
+
+func BenchmarkUpdateCounterMetric(b *testing.B) {
+	oldMetric := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(100),
+	}
+
+	newMetric := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(50),
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = UpdateCounterMetric(oldMetric, newMetric)
+	}
+}
+
+func BenchmarkUpdateMetricInMap(b *testing.B) {
+	logger := zap.NewNop().Sugar()
+
+	metrics := map[string]models.Metric{
+		"gaugeMetric": {
+			ID:    "gaugeMetric",
+			MType: constants.Gauge,
+			Value: float64Ptr(123.456),
+		},
+		"counterMetric": {
+			ID:    "counterMetric",
+			MType: constants.Counter,
+			Delta: int64Ptr(100),
+		},
+	}
+
+	newMetric := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(50),
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = UpdateMetricInMap(metrics, newMetric, logger)
+	}
+}
+
+func BenchmarkProcessMetricsDuplicates(b *testing.B) {
+	metrics := []models.Metric{
+		{ID: "counterMetric", MType: constants.Counter, Delta: int64Ptr(100)},
+		{ID: "counterMetric", MType: constants.Counter, Delta: int64Ptr(50)},
+		{ID: "gaugeMetric", MType: constants.Gauge, Value: float64Ptr(123.456)},
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = ProcessMetricsDuplicates(metrics)
+	}
+}

@@ -7,6 +7,10 @@ import (
 
 func Ping(db *sql.DB) http.HandlerFunc {
 	return func(res http.ResponseWriter, _ *http.Request) {
+		if db == nil {
+			res.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		err := db.Ping()
 
 		if err != nil {

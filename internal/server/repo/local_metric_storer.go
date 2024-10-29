@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -35,11 +34,6 @@ func NewLocalMetricStorer(restore bool, filePath string, zapLogger *zap.SugaredL
 func (s *LocalMetricStorerImpl) StoreSingle(_ context.Context, newMetric models.Metric) (*models.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	valid := helpers.ValidateMetric(newMetric)
-	if !valid {
-		return &models.Metric{}, fmt.Errorf("invalide metric")
-	}
 
 	updatedMetric, err := helpers.UpdateMetricInMap(s.metrics, newMetric, s.zapLogger)
 
