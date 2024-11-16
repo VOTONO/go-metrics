@@ -15,19 +15,20 @@ import (
 
 // ReadWorker periodically read runtimes metrics and sendWithRetry it to result channel.
 type ReadWorker struct {
+	ResultChannel chan []models.Metric
 	logger        *zap.SugaredLogger
 	ticker        *time.Ticker
 	stopChannel   chan struct{}
-	resultChannel chan []models.Metric
 	count         int64
 }
 
-func NewReadWorker(logger *zap.SugaredLogger, resultChannel chan []models.Metric, interval int) ReadWorker {
+func NewReadWorker(logger *zap.SugaredLogger, interval int) ReadWorker {
+	readResultChannel := make(chan []models.Metric, 1)
 	return ReadWorker{
+		ResultChannel: readResultChannel,
 		logger:        logger,
 		ticker:        helpers.CreateTicker(interval),
 		stopChannel:   make(chan struct{}),
-		resultChannel: resultChannel,
 		count:         0,
 	}
 }
@@ -40,12 +41,12 @@ func (w *ReadWorker) Start() {
 		case <-w.stopChannel:
 			w.logger.Infow("stopping readRuntimeMetrics worker")
 			w.ticker.Stop()
-			close(w.resultChannel)
+			close(w.ResultChannel)
 			return
 		case <-w.ticker.C:
 			w.logger.Infow("readRuntimeMetrics metrics")
-			w.resultChannel <- w.readRuntimeMetrics()
-			w.resultChannel <- w.readMemoryMetrics()
+			w.ResultChannel <- w.readRuntimeMetrics()
+			w.ResultChannel <- w.readMemoryMetrics()
 		}
 	}
 }

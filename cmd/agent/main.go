@@ -10,7 +10,6 @@ import (
 
 	"github.com/VOTONO/go-metrics/internal/agent/helpers"
 	"github.com/VOTONO/go-metrics/internal/agent/workers"
-	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 func main() {
@@ -31,11 +30,9 @@ func main() {
 	)
 
 	stopChannel := helpers.CreateSystemStopChannel()
-	readResultChannel := make(chan []models.Metric, 1)
 
 	readWorker := workers.NewReadWorker(
 		sugaredLogger,
-		readResultChannel,
 		config.pollInterval,
 	)
 
@@ -47,7 +44,7 @@ func main() {
 		client,
 		sugaredLogger,
 		config.reportInterval,
-		readResultChannel,
+		readWorker.ResultChannel,
 		config.rateLimit,
 		config.address,
 		config.secretKey,

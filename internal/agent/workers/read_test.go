@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
-
-	"github.com/VOTONO/go-metrics/internal/models"
 )
 
 func BenchmarkRead(b *testing.B) {
@@ -17,11 +15,9 @@ func BenchmarkRead(b *testing.B) {
 	defer logger.Sync()
 
 	sugaredLogger := logger.Sugar()
-	readResultChannel := make(chan []models.Metric, 1)
 
 	readWorker := NewReadWorker(
 		sugaredLogger,
-		readResultChannel,
 		10,
 	)
 
