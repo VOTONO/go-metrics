@@ -3,7 +3,7 @@ package compressor
 import (
 	"bytes"
 	"compress/gzip"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,7 +48,7 @@ func TestCompressor_WithGzip(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Read decompressed body
-	decompressedBody, err := ioutil.ReadAll(gz)
+	decompressedBody, err := io.ReadAll(gz) // Replaced ioutil.ReadAll with io.ReadAll
 	assert.NoError(t, err)
 
 	// Assert the decompressed body is the original response
@@ -84,7 +84,7 @@ func TestCompressor_WithoutGzip(t *testing.T) {
 func TestDecompressor_WithGzip(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify if the body is decompressed
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, "Hello, World", string(body))
 	})
@@ -106,5 +106,4 @@ func TestDecompressor_WithGzip(t *testing.T) {
 	// Record the response
 	rr := httptest.NewRecorder()
 	decompressedHandler.ServeHTTP(rr, req)
-
 }

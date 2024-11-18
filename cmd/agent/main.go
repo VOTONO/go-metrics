@@ -12,6 +12,12 @@ import (
 	"github.com/VOTONO/go-metrics/internal/agent/workers"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -22,6 +28,12 @@ func main() {
 	sugaredLogger := logger.Sugar()
 	config := getConfig()
 
+	sugaredLogger.Infow(
+		"Ldflags",
+		"Build version", buildVersion,
+		"Build date", buildDate,
+		"Build commit", buildCommit,
+	)
 	sugaredLogger.Infow("starting agent",
 		"address", config.address,
 		"pollInterval", config.pollInterval,

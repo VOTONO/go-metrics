@@ -19,6 +19,12 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/router"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -36,6 +42,12 @@ func main() {
 	defer db.Close()
 	rout := router.Router(storer, db, &zapLogger, config.secretKey)
 
+	zapLogger.Infow(
+		"Ldflags",
+		"Build version", buildVersion,
+		"Build date", buildDate,
+		"Build commit", buildCommit,
+	)
 	zapLogger.Infow(
 		"Starting server",
 		"address", config.address,

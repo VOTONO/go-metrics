@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"honnef.co/go/tools/staticcheck"
 
-	"github.com/VOTONO/go-metrics/cmd/staticlint/custom_analyzer"
+	"github.com/VOTONO/go-metrics/cmd/staticlint/customanalyzer"
 )
 
 // Config defines the name of the configuration file that lists the static analyzers to enable.
@@ -65,10 +65,10 @@ func main() {
 
 	// Initialize list of analyzers with built-in analyzers.
 	mychecks := []*analysis.Analyzer{
-		custom_analyzer.ErrCheckAnalyzer, // Custom analyzer to check for os.Exit in main.
-		printf.Analyzer,                  // Checks for correct printf-style function calls.
-		shadow.Analyzer,                  // Detects variable shadowing.
-		structtag.Analyzer,               // Verifies struct field tags.
+		customanalyzer.ErrCheckAnalyzer, // Custom analyzer to check for os.Exit in main.
+		printf.Analyzer,                 // Checks for correct printf-style function calls.
+		shadow.Analyzer,                 // Detects variable shadowing.
+		structtag.Analyzer,              // Verifies struct field tags.
 	}
 
 	// Create a map to hold enabled staticcheck analyzers from config.

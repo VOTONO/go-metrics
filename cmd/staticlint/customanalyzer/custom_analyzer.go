@@ -1,4 +1,4 @@
-package custom_analyzer
+package customanalyzer
 
 import (
 	"go/ast"
