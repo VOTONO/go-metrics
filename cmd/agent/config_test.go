@@ -29,7 +29,7 @@ func TestLoadEnvConfig(t *testing.T) {
 		secretKey:      defaultSecretKey,
 		rateLimit:      defaultRateLimit,
 	}
-	loadEnvConfig(&config)
+	parseEnvs(&config)
 
 	expected := Config{
 		address:        "127.0.0.1:9090",

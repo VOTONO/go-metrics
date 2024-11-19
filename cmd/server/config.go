@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 )
@@ -17,6 +19,7 @@ const (
 	defaultEnableHttps     = false
 	defaultPublicKeyPath   = ""
 	defaultPrivateKeyPath  = ""
+	defaultConfigFilePath  = ""
 )
 
 type Config struct {
@@ -31,7 +34,7 @@ type Config struct {
 	privateKeyPath  string
 }
 
-func loadEnvConfig(config *Config) {
+func parseEnvs(config *Config) {
 	if address, ok := os.LookupEnv("ADDRESS"); ok {
 		config.address = address
 	}
@@ -91,6 +94,49 @@ func parseFlags(config *Config) {
 	config.privateKeyPath = *privateKeyPathFlag
 }
 
+func parseConfigFile(config *Config) {
+	// Define a flag for the configuration file path
+	configFilePath := flag.String("c", defaultConfigFilePath, fmt.Sprintf("Configuration file path (default: %s)", defaultConfigFilePath))
+
+	// Parse the flags to get the file path if specified
+	flag.Parse()
+
+	// If no config file is specified, return without doing anything
+	if *configFilePath == "" {
+		return
+	}
+
+	// Open the configuration file
+	file, err := os.Open(*configFilePath)
+	if err != nil {
+		log.Printf("Unable to open configuration file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	// Read the file contents
+	fileInfo, err := file.Stat()
+	if err != nil {
+		log.Printf("Unable to read file stats: %v", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+	buffer := make([]byte, fileSize)
+
+	_, err = file.Read(buffer)
+	if err != nil {
+		log.Printf("Error reading configuration file: %v", err)
+		return
+	}
+
+	// Unmarshal JSON directly into the Config struct
+	err = json.Unmarshal(buffer, config)
+	if err != nil {
+		log.Printf("Error decoding configuration file: %v", err)
+		return
+	}
+}
+
 func getConfig() Config {
 	config := Config{
 		address:         defaultAddress,
@@ -104,7 +150,8 @@ func getConfig() Config {
 		privateKeyPath:  defaultPrivateKeyPath,
 	}
 
-	loadEnvConfig(&config)
+	parseConfigFile(&config)
+	parseEnvs(&config)
 	parseFlags(&config)
 
 	return config
