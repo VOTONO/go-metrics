@@ -56,6 +56,9 @@ func main() {
 		"storeInterval", config.storeInterval,
 		"restore", config.restore,
 		"key", config.secretKey,
+		"enableHttps", config.enableHttps,
+		"publicKeyPath", config.publicKeyPath,
+		"privateKeyPath", config.privateKeyPath,
 	)
 
 	httpServer := &http.Server{
@@ -77,7 +80,7 @@ func main() {
 			zapLogger.Errorw(
 				"failed get metrics from storage before writing to file",
 				"filePath", config.fileStoragePath,
-				"err", err.Error())
+				"startServerErr", err.Error())
 			// Ensure the server shutdown is attempted even if there's an error retrieving metrics
 		} else {
 			repo.RewriteFile(config.fileStoragePath, metrics, &zapLogger)
@@ -95,13 +98,18 @@ func main() {
 
 	repo.StartWriting(ctx, storer, &zapLogger, config.storeInterval, config.fileStoragePath)
 
-	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	var startServerErr error
+	if config.enableHttps {
+		startServerErr = httpServer.ListenAndServeTLS(config.publicKeyPath, config.privateKeyPath)
+	} else {
+		startServerErr = httpServer.ListenAndServe()
+	}
+	if startServerErr != nil && !errors.Is(err, http.ErrServerClosed) {
 		zapLogger.Errorw(
 			"Fail start server",
 			"error", err,
 		)
 	}
-
 }
 
 func createStorer(logger *zap.SugaredLogger, config Config) (repo.MetricStorer, *sql.DB, error) {

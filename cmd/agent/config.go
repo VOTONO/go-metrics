@@ -13,6 +13,7 @@ const (
 	defaultReportInterval = 10
 	defaultSecretKey      = ""
 	defaultRateLimit      = 3
+	defaultPublicKeyPath  = ""
 )
 
 type Config struct {
@@ -21,6 +22,7 @@ type Config struct {
 	reportInterval int
 	secretKey      string
 	rateLimit      int
+	publicKeyPath  string
 }
 
 func loadEnvConfig(config *Config) {
@@ -45,6 +47,9 @@ func loadEnvConfig(config *Config) {
 			config.rateLimit = val
 		}
 	}
+	if publicKeyPath, ok := os.LookupEnv("CRYPTO_KEY"); ok {
+		config.publicKeyPath = publicKeyPath
+	}
 }
 
 func parseFlags(config *Config) {
@@ -53,6 +58,7 @@ func parseFlags(config *Config) {
 	reportIntervalFlag := flag.Int("r", config.reportInterval, fmt.Sprintf("Report interval in seconds (default: %d)", defaultReportInterval))
 	secretKeyFlag := flag.String("k", config.secretKey, fmt.Sprintf("Secret key (default: %s)", defaultSecretKey))
 	rateLimitFlag := flag.Int("l", config.rateLimit, fmt.Sprintf("Rate limit key (default: %d)", defaultRateLimit))
+	publicKeyPath := flag.String("crypto-key", config.publicKeyPath, fmt.Sprintf("Public key path (default: %s)", defaultPublicKeyPath))
 
 	flag.Parse()
 
@@ -61,6 +67,7 @@ func parseFlags(config *Config) {
 	config.reportInterval = *reportIntervalFlag
 	config.secretKey = *secretKeyFlag
 	config.rateLimit = *rateLimitFlag
+	config.publicKeyPath = *publicKeyPath
 }
 
 func getConfig() Config {
@@ -70,6 +77,7 @@ func getConfig() Config {
 		reportInterval: defaultReportInterval,
 		secretKey:      defaultSecretKey,
 		rateLimit:      defaultRateLimit,
+		publicKeyPath:  defaultPublicKeyPath,
 	}
 
 	loadEnvConfig(&config)

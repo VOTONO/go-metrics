@@ -1,9 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"time"
 
 	"go.uber.org/zap"
@@ -39,6 +42,7 @@ func main() {
 		"pollInterval", config.pollInterval,
 		"reportInterval", config.reportInterval,
 		"secretKey", config.secretKey,
+		"publicKeyPath", config.publicKeyPath,
 	)
 
 	stopChannel := helpers.CreateSystemStopChannel()
@@ -50,6 +54,28 @@ func main() {
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
+	}
+
+	// If public key provided, add TLS to client
+	if config.publicKeyPath != "" {
+		serverCert, err := os.ReadFile(config.publicKeyPath)
+		if err != nil {
+			sugaredLogger.Fatalf("failed to read server certificate: %v", err)
+		}
+
+		// Create a certificate pool and add the server's certificate
+		certPool := x509.NewCertPool()
+		certAdded := certPool.AppendCertsFromPEM(serverCert)
+		if !certAdded {
+			sugaredLogger.Fatal("failed to append server certificate to cert pool")
+		}
+
+		// Configure the TLS settings for the client
+		tlsConfig := &tls.Config{
+			RootCAs: certPool,
+		}
+
+		client.Transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
 
 	sendWorker := workers.NewSendWorker(

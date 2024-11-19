@@ -76,7 +76,7 @@ func (w *SendWorker) Stop() {
 
 // buildRequest creates a compressed HTTP request for a batch of metrics.
 func (w *SendWorker) buildRequest(metrics []models.Metric) (*http.Request, error) {
-	url := fmt.Sprintf("http://%s/updates/", w.address)
+	url := fmt.Sprintf("https://%s/updates/", w.address)
 
 	body, err := json.Marshal(metrics)
 	if err != nil {
