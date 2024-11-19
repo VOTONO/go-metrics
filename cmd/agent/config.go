@@ -28,14 +28,20 @@ type Config struct {
 	publicKeyPath  string
 }
 
-func parseConfigFile(configFilePath string, config *Config) {
+func parseConfigFile(config *Config) {
+	// Define a flag for the configuration file path
+	configFilePath := flag.String("c", defaultConfigFilePath, fmt.Sprintf("Configuration file path (default: %s)", defaultConfigFilePath))
+
+	// Parse the flags to get the file path if specified
+	flag.Parse()
+
 	// If no config file is specified, return without doing anything
-	if configFilePath == "" {
+	if *configFilePath == "" {
 		return
 	}
 
 	// Open the configuration file
-	file, err := os.Open(configFilePath)
+	file, err := os.Open(*configFilePath)
 	if err != nil {
 		log.Printf("Unable to open configuration file: %v", err)
 		return
@@ -99,11 +105,8 @@ func parseFlags(config *Config) {
 	secretKeyFlag := flag.String("k", config.secretKey, fmt.Sprintf("Secret key (default: %s)", defaultSecretKey))
 	rateLimitFlag := flag.Int("l", config.rateLimit, fmt.Sprintf("Rate limit key (default: %d)", defaultRateLimit))
 	publicKeyPath := flag.String("crypto-key", config.publicKeyPath, fmt.Sprintf("Public key path (default: %s)", defaultPublicKeyPath))
-	configFilePath := flag.String("c", defaultConfigFilePath, fmt.Sprintf("Configuration file path (default: %s)", defaultConfigFilePath))
 
 	flag.Parse()
-
-	parseConfigFile(*configFilePath, config)
 
 	config.address = *addressFlag
 	config.pollInterval = *pollIntervalFlag
@@ -123,6 +126,7 @@ func getConfig() Config {
 		publicKeyPath:  defaultPublicKeyPath,
 	}
 
+	parseConfigFile(&config)
 	parseEnvs(&config)
 	parseFlags(&config)
 

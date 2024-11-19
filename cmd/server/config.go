@@ -80,11 +80,8 @@ func parseFlags(config *Config) {
 	enableHttpsFlag := flag.Bool("s", config.enableHttps, fmt.Sprintf("Enable HTTPS support (default: %t)", defaultEnableHttps))
 	publicKeyPathFlag := flag.String("public-crypto-key", config.publicKeyPath, fmt.Sprintf("Public key path (default: %s)", defaultPublicKeyPath))
 	privateKeyPathFlag := flag.String("crypto-key", config.privateKeyPath, fmt.Sprintf("Private key path (default: %s)", defaultPrivateKeyPath))
-	configFilePath := flag.String("c", defaultConfigFilePath, fmt.Sprintf("Configuration file path (default: %s)", defaultConfigFilePath))
 
 	flag.Parse()
-
-	parseConfigFile(*configFilePath, config)
 
 	config.address = *addressFlag
 	config.DSN = *dbAddressFlag
@@ -97,15 +94,20 @@ func parseFlags(config *Config) {
 	config.privateKeyPath = *privateKeyPathFlag
 }
 
-func parseConfigFile(configFilePath string, config *Config) {
+func parseConfigFile(config *Config) {
+	// Define a flag for the configuration file path
+	configFilePath := flag.String("c", defaultConfigFilePath, fmt.Sprintf("Configuration file path (default: %s)", defaultConfigFilePath))
+
+	// Parse the flags to get the file path if specified
+	flag.Parse()
 
 	// If no config file is specified, return without doing anything
-	if configFilePath == "" {
+	if *configFilePath == "" {
 		return
 	}
 
 	// Open the configuration file
-	file, err := os.Open(configFilePath)
+	file, err := os.Open(*configFilePath)
 	if err != nil {
 		log.Printf("Unable to open configuration file: %v", err)
 		return
@@ -148,6 +150,7 @@ func getConfig() Config {
 		privateKeyPath:  defaultPrivateKeyPath,
 	}
 
+	parseConfigFile(&config)
 	parseEnvs(&config)
 	parseFlags(&config)
 
