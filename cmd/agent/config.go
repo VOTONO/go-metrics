@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 )
@@ -14,6 +16,7 @@ const (
 	defaultSecretKey      = ""
 	defaultRateLimit      = 3
 	defaultPublicKeyPath  = ""
+	defaultConfigFilePath = ""
 )
 
 type Config struct {
@@ -25,7 +28,44 @@ type Config struct {
 	publicKeyPath  string
 }
 
-func loadEnvConfig(config *Config) {
+func parseConfigFile(configFilePath string, config *Config) {
+	// If no config file is specified, return without doing anything
+	if configFilePath == "" {
+		return
+	}
+
+	// Open the configuration file
+	file, err := os.Open(configFilePath)
+	if err != nil {
+		log.Printf("Unable to open configuration file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	// Read the file contents
+	fileInfo, err := file.Stat()
+	if err != nil {
+		log.Printf("Unable to read file stats: %v", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+	buffer := make([]byte, fileSize)
+
+	_, err = file.Read(buffer)
+	if err != nil {
+		log.Printf("Error reading configuration file: %v", err)
+		return
+	}
+
+	// Unmarshal JSON directly into the Config struct
+	err = json.Unmarshal(buffer, config)
+	if err != nil {
+		log.Printf("Error decoding configuration file: %v", err)
+		return
+	}
+}
+
+func parseEnvs(config *Config) {
 	if address, ok := os.LookupEnv("ADDRESS"); ok {
 		config.address = address
 	}
@@ -59,8 +99,11 @@ func parseFlags(config *Config) {
 	secretKeyFlag := flag.String("k", config.secretKey, fmt.Sprintf("Secret key (default: %s)", defaultSecretKey))
 	rateLimitFlag := flag.Int("l", config.rateLimit, fmt.Sprintf("Rate limit key (default: %d)", defaultRateLimit))
 	publicKeyPath := flag.String("crypto-key", config.publicKeyPath, fmt.Sprintf("Public key path (default: %s)", defaultPublicKeyPath))
+	configFilePath := flag.String("c", defaultConfigFilePath, fmt.Sprintf("Configuration file path (default: %s)", defaultConfigFilePath))
 
 	flag.Parse()
+
+	parseConfigFile(*configFilePath, config)
 
 	config.address = *addressFlag
 	config.pollInterval = *pollIntervalFlag
@@ -80,7 +123,7 @@ func getConfig() Config {
 		publicKeyPath:  defaultPublicKeyPath,
 	}
 
-	loadEnvConfig(&config)
+	parseEnvs(&config)
 	parseFlags(&config)
 
 	return config
