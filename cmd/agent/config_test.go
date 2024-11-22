@@ -23,20 +23,20 @@ func TestLoadEnvConfig(t *testing.T) {
 	}()
 
 	config := Config{
-		address:        defaultAddress,
-		pollInterval:   defaultPollInterval,
-		reportInterval: defaultReportInterval,
-		secretKey:      defaultSecretKey,
-		rateLimit:      defaultRateLimit,
+		Address:        defaultAddress,
+		PollInterval:   defaultPollInterval,
+		ReportInterval: defaultReportInterval,
+		SecretKey:      defaultSecretKey,
+		RateLimit:      defaultRateLimit,
 	}
 	parseEnvs(&config)
 
 	expected := Config{
-		address:        "127.0.0.1:9090",
-		pollInterval:   5,
-		reportInterval: 15,
-		secretKey:      "secret123",
-		rateLimit:      7,
+		Address:        "127.0.0.1:9090",
+		PollInterval:   5,
+		ReportInterval: 15,
+		SecretKey:      "secret123",
+		RateLimit:      7,
 	}
 
 	if !reflect.DeepEqual(config, expected) {
@@ -59,20 +59,20 @@ func TestParseFlags(t *testing.T) {
 	}
 
 	config := Config{
-		address:        defaultAddress,
-		pollInterval:   defaultPollInterval,
-		reportInterval: defaultReportInterval,
-		secretKey:      defaultSecretKey,
-		rateLimit:      defaultRateLimit,
+		Address:        defaultAddress,
+		PollInterval:   defaultPollInterval,
+		ReportInterval: defaultReportInterval,
+		SecretKey:      defaultSecretKey,
+		RateLimit:      defaultRateLimit,
 	}
 	parseFlags(&config)
 
 	expected := Config{
-		address:        "127.0.0.1:9090",
-		pollInterval:   5,
-		reportInterval: 15,
-		secretKey:      "secret123",
-		rateLimit:      7,
+		Address:        "127.0.0.1:9090",
+		PollInterval:   5,
+		ReportInterval: 15,
+		SecretKey:      "secret123",
+		RateLimit:      7,
 	}
 
 	if !reflect.DeepEqual(config, expected) {
@@ -94,7 +94,7 @@ func TestGetConfig(t *testing.T) {
 	// Mock command-line arguments
 	os.Args = []string{
 		"cmd",
-		"-a", "127.0.0.1:8082", // Override address from flag
+		"-a", "127.0.0.1:8082", // Override Address from flag
 		"-p", "15", // Override poll interval from flag
 		"-r", "30", // Override report interval from flag
 		"-k", "newsecret", // Override secret key from flag
@@ -106,11 +106,11 @@ func TestGetConfig(t *testing.T) {
 
 	// Expected values based on the environment variables and flags
 	expected := Config{
-		address:        "127.0.0.1:8082", // Flag overrides env
-		pollInterval:   15,               // Flag overrides env
-		reportInterval: 30,               // Flag overrides env
-		secretKey:      "newsecret",      // Flag overrides env
-		rateLimit:      10,               // Flag overrides env
+		Address:        "127.0.0.1:8082", // Flag overrides env
+		PollInterval:   15,               // Flag overrides env
+		ReportInterval: 30,               // Flag overrides env
+		SecretKey:      "newsecret",      // Flag overrides env
+		RateLimit:      10,               // Flag overrides env
 	}
 
 	// Clean up the environment variables after the test
