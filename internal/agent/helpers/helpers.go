@@ -9,7 +9,7 @@ import (
 
 func CreateSystemStopChannel() chan os.Signal {
 	stopChannel := make(chan os.Signal, 1)
-	signal.Notify(stopChannel, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(stopChannel, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	return stopChannel
 }
 
