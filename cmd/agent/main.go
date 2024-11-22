@@ -3,13 +3,19 @@ package main
 import (
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/VOTONO/go-metrics/internal/agent/helpers"
 	"github.com/VOTONO/go-metrics/internal/agent/workers"
-	"github.com/VOTONO/go-metrics/internal/models"
+)
+
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 func main() {
@@ -22,6 +28,12 @@ func main() {
 	sugaredLogger := logger.Sugar()
 	config := getConfig()
 
+	sugaredLogger.Infow(
+		"Ldflags",
+		"Build version", buildVersion,
+		"Build date", buildDate,
+		"Build commit", buildCommit,
+	)
 	sugaredLogger.Infow("starting agent",
 		"address", config.address,
 		"pollInterval", config.pollInterval,
@@ -30,11 +42,9 @@ func main() {
 	)
 
 	stopChannel := helpers.CreateSystemStopChannel()
-	readResultChannel := make(chan []models.Metric, 1)
 
 	readWorker := workers.NewReadWorker(
 		sugaredLogger,
-		readResultChannel,
 		config.pollInterval,
 	)
 
@@ -46,11 +56,18 @@ func main() {
 		client,
 		sugaredLogger,
 		config.reportInterval,
-		readResultChannel,
+		readWorker.ResultChannel,
 		config.rateLimit,
 		config.address,
 		config.secretKey,
 	)
+
+	go func() {
+		err := http.ListenAndServe(":9191", nil)
+		if err != nil {
+			sugaredLogger.Errorw("Fail start agent", "error", err)
+		}
+	}()
 
 	go func() {
 		readWorker.Start()

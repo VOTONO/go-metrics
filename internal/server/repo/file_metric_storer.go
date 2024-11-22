@@ -11,6 +11,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
+// FileMetricStorerImpl implementation of MetricStorer interface. Stores all metrics in file.
 type FileMetricStorerImpl struct {
 	mu        sync.RWMutex
 	filePath  string

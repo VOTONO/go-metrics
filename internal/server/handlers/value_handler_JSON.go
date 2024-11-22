@@ -11,6 +11,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
+// ValueHandlerJSON retrieve metric name from body in JSON format and return value.
 func ValueHandlerJSON(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metric models.Metric

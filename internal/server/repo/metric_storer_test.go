@@ -25,7 +25,9 @@ func TestMetricStorers(t *testing.T) {
 
 	testMetricsFilePath := "/tmp/test_metrics.json"
 
-	os.Remove(testMetricsFilePath)
+	t.Cleanup(func() {
+		os.Remove(testMetricsFilePath)
+	})
 
 	storers := []struct {
 		name   string
@@ -37,10 +39,11 @@ func TestMetricStorers(t *testing.T) {
 
 	for _, stor := range storers {
 		t.Run(stor.name, func(t *testing.T) {
+			testAll(t, stor.storer)
 			testStoreGetGauge(t, stor.storer)
 			testStoreGetCounter(t, stor.storer)
 			testInvalidMetric(t, stor.storer)
-			testStoreSlice(t, stor.storer) // Add this line to include StoreSlice tests
+			testStoreSlice(t, stor.storer)
 		})
 	}
 }
@@ -88,6 +91,43 @@ func testStoreGetCounter(t *testing.T, stor repo.MetricStorer) {
 	}
 }
 
+func testAll(t *testing.T, stor repo.MetricStorer) {
+	metrics := []models.Metric{
+		{ID: "gauge1", MType: constants.Gauge, Value: float64Pointer(0.75)},
+		{ID: "counter1", MType: constants.Counter, Delta: int64Pointer(10)},
+		{ID: "gauge2", MType: constants.Gauge, Value: float64Pointer(1.25)},
+	}
+
+	// Store metrics in the storage
+	err := stor.StoreSlice(context.Background(), metrics)
+	if err != nil {
+		t.Fatalf("unexpected error while storing metrics: %v", err)
+	}
+
+	// Retrieve all metrics
+	allMetrics, err := stor.All(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error while retrieving all metrics: %v", err)
+	}
+
+	// Ensure all metrics are present and correct
+	if len(allMetrics) != len(metrics) {
+		t.Errorf("expected %d metrics, got %d", len(metrics), len(allMetrics))
+	}
+
+	for _, metric := range metrics {
+		storedMetric, exists := allMetrics[metric.ID]
+		if !exists {
+			t.Errorf("metric %s not found", metric.ID)
+			continue
+		}
+
+		if !compareMetrics(storedMetric, metric) {
+			t.Errorf("expected metric %s to be %v, got %v", metric.ID, metric, storedMetric)
+		}
+	}
+}
+
 func testInvalidMetric(t *testing.T, stor repo.MetricStorer) {
 	invalidMetrics := []models.Metric{
 		utils.InvalidGaugeMissingValue,
@@ -109,8 +149,8 @@ func testInvalidMetric(t *testing.T, stor repo.MetricStorer) {
 
 func testStoreSlice(t *testing.T, stor repo.MetricStorer) {
 	metrics := []models.Metric{
-		{ID: "gauge1", MType: constants.Gauge, Value: float64Pointer(0.75)},
-		{ID: "counter1", MType: constants.Counter, Delta: int64Pointer(10)},
+		{ID: "gauge_slice", MType: constants.Gauge, Value: float64Pointer(0.75)},
+		{ID: "counter_slice", MType: constants.Counter, Delta: int64Pointer(10)},
 	}
 
 	err := stor.StoreSlice(context.Background(), metrics)

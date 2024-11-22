@@ -1,3 +1,4 @@
+// Server for storing metrics.
 package main
 
 import (
@@ -6,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os/signal"
 	"syscall"
 	"time"
@@ -15,6 +17,12 @@ import (
 
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"github.com/VOTONO/go-metrics/internal/server/router"
+)
+
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 func main() {
@@ -34,6 +42,12 @@ func main() {
 	defer db.Close()
 	rout := router.Router(storer, db, &zapLogger, config.secretKey)
 
+	zapLogger.Infow(
+		"Ldflags",
+		"Build version", buildVersion,
+		"Build date", buildDate,
+		"Build commit", buildCommit,
+	)
 	zapLogger.Infow(
 		"Starting server",
 		"address", config.address,
@@ -87,6 +101,7 @@ func main() {
 			"error", err,
 		)
 	}
+
 }
 
 func createStorer(logger *zap.SugaredLogger, config Config) (repo.MetricStorer, *sql.DB, error) {

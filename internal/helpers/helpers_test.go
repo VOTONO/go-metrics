@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"log"
 	"testing"
 
@@ -218,6 +219,213 @@ func TestMetricsToHTML(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
 			}
+		})
+	}
+}
+
+func BenchmarkExtractValue(b *testing.B) {
+	metricGauge := models.Metric{
+		ID:    "gaugeMetric",
+		MType: constants.Gauge,
+		Value: float64Ptr(123.456),
+	}
+
+	metricCounter := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(789),
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, _ = ExtractValue(metricGauge)
+		_, _ = ExtractValue(metricCounter)
+	}
+}
+
+func BenchmarkValidateMetric(b *testing.B) {
+	metricGauge := models.Metric{
+		ID:    "gaugeMetric",
+		MType: constants.Gauge,
+		Value: float64Ptr(123.456),
+	}
+
+	metricCounter := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(789),
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = ValidateMetric(metricGauge)
+		_ = ValidateMetric(metricCounter)
+	}
+}
+
+func BenchmarkUpdateCounterMetric(b *testing.B) {
+	oldMetric := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(100),
+	}
+
+	newMetric := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(50),
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = UpdateCounterMetric(oldMetric, newMetric)
+	}
+}
+
+func BenchmarkUpdateMetricInMap(b *testing.B) {
+	logger := zap.NewNop().Sugar()
+
+	metrics := map[string]models.Metric{
+		"gaugeMetric": {
+			ID:    "gaugeMetric",
+			MType: constants.Gauge,
+			Value: float64Ptr(123.456),
+		},
+		"counterMetric": {
+			ID:    "counterMetric",
+			MType: constants.Counter,
+			Delta: int64Ptr(100),
+		},
+	}
+
+	newMetric := models.Metric{
+		ID:    "counterMetric",
+		MType: constants.Counter,
+		Delta: int64Ptr(50),
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = UpdateMetricInMap(metrics, newMetric, logger)
+	}
+}
+
+func BenchmarkProcessMetricsDuplicates(b *testing.B) {
+	metrics := []models.Metric{
+		{ID: "counterMetric", MType: constants.Counter, Delta: int64Ptr(100)},
+		{ID: "counterMetric", MType: constants.Counter, Delta: int64Ptr(50)},
+		{ID: "gaugeMetric", MType: constants.Gauge, Value: float64Ptr(123.456)},
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = ProcessMetricsDuplicates(metrics)
+	}
+}
+
+func TestConvertMapToSlice(t *testing.T) {
+	type args struct {
+		metricsMap map[string]models.Metric
+	}
+	tests := []struct {
+		name string
+		args args
+		want []models.Metric
+	}{
+		{
+			name: "Single metric",
+			args: args{
+				metricsMap: map[string]models.Metric{
+					"metric1_counter": {ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+				},
+			},
+			want: []models.Metric{{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)}},
+		},
+		{
+			name: "Multiple metrics",
+			args: args{
+				metricsMap: map[string]models.Metric{
+					"metric1_counter": {ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+					"metric2_gauge":   {ID: "metric2", MType: constants.Gauge, Value: float64Ptr(3.14)},
+				},
+			},
+			want: []models.Metric{
+				{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+				{ID: "metric2", MType: constants.Gauge, Value: float64Ptr(3.14)},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.ElementsMatch(t, tt.want, ConvertMapToSlice(tt.args.metricsMap), "ConvertMapToSlice(%v)", tt.args.metricsMap)
+		})
+	}
+}
+
+func TestProcessMetricsDuplicates(t *testing.T) {
+	type args struct {
+		metrics []models.Metric
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []models.Metric
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "No duplicates",
+			args: args{
+				metrics: []models.Metric{
+					{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+					{ID: "metric2", MType: constants.Gauge, Value: float64Ptr(3.14)},
+				},
+			},
+			want: []models.Metric{
+				{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+				{ID: "metric2", MType: constants.Gauge, Value: float64Ptr(3.14)},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "Duplicate counter metrics",
+			args: args{
+				metrics: []models.Metric{
+					{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+					{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(15)},
+				},
+			},
+			want: []models.Metric{
+				{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(25)},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "Mixed duplicates",
+			args: args{
+				metrics: []models.Metric{
+					{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(10)},
+					{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(5)},
+					{ID: "metric2", MType: constants.Gauge, Value: float64Ptr(2.71)},
+					{ID: "metric2", MType: constants.Gauge, Value: float64Ptr(3.14)}, // Gauge should take the last seen
+				},
+			},
+			want: []models.Metric{
+				{ID: "metric1", MType: constants.Counter, Delta: int64Ptr(15)},
+				{ID: "metric2", MType: constants.Gauge, Value: float64Ptr(3.14)},
+			},
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ProcessMetricsDuplicates(tt.args.metrics)
+			if !tt.wantErr(t, err, fmt.Sprintf("ProcessMetricsDuplicates(%v)", tt.args.metrics)) {
+				return
+			}
+			assert.ElementsMatch(t, tt.want, got, "ProcessMetricsDuplicates(%v)", tt.args.metrics)
 		})
 	}
 }

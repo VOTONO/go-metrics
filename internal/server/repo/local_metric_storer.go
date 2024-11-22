@@ -11,6 +11,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/models"
 )
 
+// LocalMetricStorerImpl implementation of MetricStorer interface. Stores all metrics in map.
 type LocalMetricStorerImpl struct {
 	mu        sync.RWMutex
 	zapLogger *zap.SugaredLogger

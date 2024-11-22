@@ -12,6 +12,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
+// ValueHandler retrieve metric name from URLParams and return value.
 func ValueHandler(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 

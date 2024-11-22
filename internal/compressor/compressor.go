@@ -1,3 +1,4 @@
+// Package compressor contains middlewares for compress and decompress requests and response.
 package compressor
 
 import (
@@ -5,45 +6,45 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
-type gzipWriter struct {
+var gzipWriterPool = sync.Pool{
+	New: func() interface{} {
+		w, _ := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+		return w
+	},
+}
+
+type gzipResponseWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
 }
 
-func (w gzipWriter) Write(b []byte) (int, error) {
-	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
+func (w gzipResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
+// Compressor returns a middleware that compress response body if Accept-Encoding header exists.
 func Compressor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// проверяем, что клиент поддерживает gzip-сжатие
-		// это упрощённый пример. В реальном приложении следует проверять все
-		// значения r.Header.Values("Accept-Encoding") и разбирать строку
-		// на составные части, чтобы избежать неожиданных результатов
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			// если gzip не поддерживается, передаём управление
-			// дальше без изменений
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// создаём gzip.Writer поверх текущего w
-		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-		if err != nil {
-			io.WriteString(w, err.Error())
-			return
-		}
+		// Get gzip writer from pool and set ResponseWriter
+		gz := gzipWriterPool.Get().(*gzip.Writer)
+		defer gzipWriterPool.Put(gz)
+		gz.Reset(w)
 		defer gz.Close()
 
 		w.Header().Set("Content-Encoding", "gzip")
-		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+		next.ServeHTTP(gzipResponseWriter{ResponseWriter: w, Writer: gz}, r)
 	})
 }
 
+// Decompressor returns a middleware that decompress request body if Content-Encoding header exists.
 func Decompressor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
@@ -59,7 +60,6 @@ func Decompressor(next http.Handler) http.Handler {
 		defer gz.Close()
 
 		r.Body = gz
-
 		r.Header.Del("Content-Encoding")
 
 		next.ServeHTTP(w, r)

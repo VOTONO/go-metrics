@@ -11,6 +11,7 @@ import (
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 )
 
+// BatchUpdateHandler receives array of metrics in JSON format and updates storage with them.
 func BatchUpdateHandler(storer repo.MetricStorer) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var metrics []models.Metric
@@ -22,9 +23,9 @@ func BatchUpdateHandler(storer repo.MetricStorer) http.HandlerFunc {
 			return
 		}
 
-		umarshalErr := json.Unmarshal(buf.Bytes(), &metrics)
-		if umarshalErr != nil {
-			http.Error(res, umarshalErr.Error(), http.StatusBadRequest)
+		unmarshalErr := json.Unmarshal(buf.Bytes(), &metrics)
+		if unmarshalErr != nil {
+			http.Error(res, unmarshalErr.Error(), http.StatusBadRequest)
 			return
 		}
 
