@@ -8,13 +8,12 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
-	"os/signal"
-	"syscall"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
+	"github.com/VOTONO/go-metrics/internal/agent/helpers"
 	"github.com/VOTONO/go-metrics/internal/server/repo"
 	"github.com/VOTONO/go-metrics/internal/server/router"
 )
@@ -40,7 +39,7 @@ func main() {
 		log.Fatalf("can't initialize metric storer: %v", err)
 	}
 	defer db.Close()
-	rout := router.Router(storer, db, &zapLogger, config.secretKey)
+	rout := router.Router(storer, db, &zapLogger, config.SecretKey)
 
 	zapLogger.Infow(
 		"Ldflags",
@@ -50,27 +49,26 @@ func main() {
 	)
 	zapLogger.Infow(
 		"Starting server",
-		"address", config.address,
+		"Address", config.Address,
 		"DSN", config.DSN,
-		"fileStoragePath", config.fileStoragePath,
-		"storeInterval", config.storeInterval,
-		"restore", config.restore,
-		"key", config.secretKey,
-		"enableHttps", config.enableHttps,
-		"publicKeyPath", config.publicKeyPath,
-		"privateKeyPath", config.privateKeyPath,
+		"FileStoragePath", config.FileStoragePath,
+		"StoreInterval", config.StoreInterval,
+		"Restore", config.Restore,
+		"key", config.SecretKey,
+		"enableHttps", config.EnableHTTPS,
+		"PublicKeyPath", config.PublicKeyPath,
+		"PrivateKeyPath", config.PrivateKeyPath,
 	)
 
 	httpServer := &http.Server{
-		Addr:    config.address,
+		Addr:    config.Address,
 		Handler: rout,
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGKILL)
-	defer stop()
+	stopChannel := helpers.CreateSystemStopChannel()
 
 	go func() {
-		<-ctx.Done()
+		<-stopChannel
 		zapLogger.Infow("Shutting down server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
@@ -79,11 +77,11 @@ func main() {
 		if err != nil {
 			zapLogger.Errorw(
 				"failed get metrics from storage before writing to file",
-				"filePath", config.fileStoragePath,
+				"filePath", config.FileStoragePath,
 				"startServerErr", err.Error())
 			// Ensure the server shutdown is attempted even if there's an error retrieving metrics
 		} else {
-			repo.RewriteFile(config.fileStoragePath, metrics, &zapLogger)
+			repo.RewriteFile(config.FileStoragePath, metrics, &zapLogger)
 		}
 
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
@@ -96,11 +94,11 @@ func main() {
 		}
 	}()
 
-	repo.StartWriting(ctx, storer, &zapLogger, config.storeInterval, config.fileStoragePath)
+	repo.StartWriting(context.Background(), storer, &zapLogger, config.StoreInterval, config.FileStoragePath)
 
 	var startServerErr error
-	if config.enableHttps {
-		startServerErr = httpServer.ListenAndServeTLS(config.publicKeyPath, config.privateKeyPath)
+	if config.EnableHTTPS {
+		startServerErr = httpServer.ListenAndServeTLS(config.PublicKeyPath, config.PrivateKeyPath)
 	} else {
 		startServerErr = httpServer.ListenAndServe()
 	}
@@ -118,7 +116,7 @@ func createStorer(logger *zap.SugaredLogger, config Config) (repo.MetricStorer, 
 		if err != nil {
 			logger.Errorw(
 				"Fail open db",
-				"address", config.DSN,
+				"Address", config.DSN,
 			)
 			return nil, nil, err
 		}
@@ -133,9 +131,9 @@ func createStorer(logger *zap.SugaredLogger, config Config) (repo.MetricStorer, 
 		return storer, db, nil
 	}
 
-	if config.storeInterval == 0 {
-		return repo.NewFileMetricStorer(config.fileStoragePath, logger), nil, nil
+	if config.StoreInterval == 0 {
+		return repo.NewFileMetricStorer(config.FileStoragePath, logger), nil, nil
 	}
 
-	return repo.NewLocalMetricStorer(config.restore, config.fileStoragePath, logger), nil, nil
+	return repo.NewLocalMetricStorer(config.Restore, config.FileStoragePath, logger), nil, nil
 }

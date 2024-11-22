@@ -38,18 +38,18 @@ func main() {
 		"Build commit", buildCommit,
 	)
 	sugaredLogger.Infow("starting agent",
-		"address", config.address,
-		"pollInterval", config.pollInterval,
-		"reportInterval", config.reportInterval,
-		"secretKey", config.secretKey,
-		"publicKeyPath", config.publicKeyPath,
+		"Address", config.Address,
+		"PollInterval", config.PollInterval,
+		"ReportInterval", config.ReportInterval,
+		"SecretKey", config.SecretKey,
+		"PublicKeyPath", config.PublicKeyPath,
 	)
 
 	stopChannel := helpers.CreateSystemStopChannel()
 
 	readWorker := workers.NewReadWorker(
 		sugaredLogger,
-		config.pollInterval,
+		config.PollInterval,
 	)
 
 	client := &http.Client{
@@ -57,8 +57,8 @@ func main() {
 	}
 
 	// If public key provided, add TLS to client
-	if config.publicKeyPath != "" {
-		serverCert, err := os.ReadFile(config.publicKeyPath)
+	if config.PublicKeyPath != "" {
+		serverCert, err := os.ReadFile(config.PublicKeyPath)
 		if err != nil {
 			sugaredLogger.Fatalf("failed to read server certificate: %v", err)
 		}
@@ -81,11 +81,11 @@ func main() {
 	sendWorker := workers.NewSendWorker(
 		client,
 		sugaredLogger,
-		config.reportInterval,
+		config.ReportInterval,
 		readWorker.ResultChannel,
-		config.rateLimit,
-		config.address,
-		config.secretKey,
+		config.RateLimit,
+		config.Address,
+		config.SecretKey,
 	)
 
 	go func() {

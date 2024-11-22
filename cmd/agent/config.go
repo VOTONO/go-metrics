@@ -20,12 +20,12 @@ const (
 )
 
 type Config struct {
-	address        string
-	pollInterval   int
-	reportInterval int
-	secretKey      string
-	rateLimit      int
-	publicKeyPath  string
+	Address        string
+	PollInterval   int
+	ReportInterval int
+	SecretKey      string
+	RateLimit      int
+	PublicKeyPath  string
 }
 
 func parseConfigFile(config *Config) {
@@ -73,57 +73,57 @@ func parseConfigFile(config *Config) {
 
 func parseEnvs(config *Config) {
 	if address, ok := os.LookupEnv("ADDRESS"); ok {
-		config.address = address
+		config.Address = address
 	}
 	if pollInterval, ok := os.LookupEnv("POLL_INTERVAL"); ok {
 		if val, err := strconv.Atoi(pollInterval); err == nil {
-			config.pollInterval = val
+			config.PollInterval = val
 		}
 	}
 	if reportInterval, ok := os.LookupEnv("REPORT_INTERVAL"); ok {
 		if val, err := strconv.Atoi(reportInterval); err == nil {
-			config.reportInterval = val
+			config.ReportInterval = val
 		}
 	}
 	if secretKey, ok := os.LookupEnv("KEY"); ok {
-		config.secretKey = secretKey
+		config.SecretKey = secretKey
 	}
 	if rateLimit, ok := os.LookupEnv("RATE_LIMIT"); ok {
 		if val, err := strconv.Atoi(rateLimit); err == nil {
-			config.rateLimit = val
+			config.RateLimit = val
 		}
 	}
 	if publicKeyPath, ok := os.LookupEnv("CRYPTO_KEY"); ok {
-		config.publicKeyPath = publicKeyPath
+		config.PublicKeyPath = publicKeyPath
 	}
 }
 
 func parseFlags(config *Config) {
-	addressFlag := flag.String("a", config.address, fmt.Sprintf("Address to bind to (default: %s)", defaultAddress))
-	pollIntervalFlag := flag.Int("p", config.pollInterval, fmt.Sprintf("Poll interval in seconds (default: %d)", defaultPollInterval))
-	reportIntervalFlag := flag.Int("r", config.reportInterval, fmt.Sprintf("Report interval in seconds (default: %d)", defaultReportInterval))
-	secretKeyFlag := flag.String("k", config.secretKey, fmt.Sprintf("Secret key (default: %s)", defaultSecretKey))
-	rateLimitFlag := flag.Int("l", config.rateLimit, fmt.Sprintf("Rate limit key (default: %d)", defaultRateLimit))
-	publicKeyPath := flag.String("crypto-key", config.publicKeyPath, fmt.Sprintf("Public key path (default: %s)", defaultPublicKeyPath))
+	addressFlag := flag.String("a", config.Address, fmt.Sprintf("Address to bind to (default: %s)", defaultAddress))
+	pollIntervalFlag := flag.Int("p", config.PollInterval, fmt.Sprintf("Poll interval in seconds (default: %d)", defaultPollInterval))
+	reportIntervalFlag := flag.Int("r", config.ReportInterval, fmt.Sprintf("Report interval in seconds (default: %d)", defaultReportInterval))
+	secretKeyFlag := flag.String("k", config.SecretKey, fmt.Sprintf("Secret key (default: %s)", defaultSecretKey))
+	rateLimitFlag := flag.Int("l", config.RateLimit, fmt.Sprintf("Rate limit key (default: %d)", defaultRateLimit))
+	publicKeyPath := flag.String("crypto-key", config.PublicKeyPath, fmt.Sprintf("Public key path (default: %s)", defaultPublicKeyPath))
 
 	flag.Parse()
 
-	config.address = *addressFlag
-	config.pollInterval = *pollIntervalFlag
-	config.reportInterval = *reportIntervalFlag
-	config.secretKey = *secretKeyFlag
-	config.rateLimit = *rateLimitFlag
-	config.publicKeyPath = *publicKeyPath
+	config.Address = *addressFlag
+	config.PollInterval = *pollIntervalFlag
+	config.ReportInterval = *reportIntervalFlag
+	config.SecretKey = *secretKeyFlag
+	config.RateLimit = *rateLimitFlag
+	config.PublicKeyPath = *publicKeyPath
 }
 
 func getConfig() Config {
 	config := Config{
-		address:        defaultAddress,
-		pollInterval:   defaultPollInterval,
-		reportInterval: defaultReportInterval,
-		secretKey:      defaultSecretKey,
-		rateLimit:      defaultRateLimit,
-		publicKeyPath:  defaultPublicKeyPath,
+		Address:        defaultAddress,
+		PollInterval:   defaultPollInterval,
+		ReportInterval: defaultReportInterval,
+		SecretKey:      defaultSecretKey,
+		RateLimit:      defaultRateLimit,
+		PublicKeyPath:  defaultPublicKeyPath,
 	}
 
 	parseConfigFile(&config)

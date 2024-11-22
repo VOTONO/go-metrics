@@ -27,22 +27,22 @@ func TestLoadEnvConfig(t *testing.T) {
 	}()
 
 	config := Config{
-		address:         defaultAddress,
+		Address:         defaultAddress,
 		DSN:             defaultDSN,
-		storeInterval:   defaultStoreInterval,
-		fileStoragePath: defaultFileStoragePath,
-		restore:         defaultRestore,
-		secretKey:       defaultSecretKey,
+		StoreInterval:   defaultStoreInterval,
+		FileStoragePath: defaultFileStoragePath,
+		Restore:         defaultRestore,
+		SecretKey:       defaultSecretKey,
 	}
 	parseEnvs(&config)
 
 	expected := Config{
-		address:         "127.0.0.1:9090",
+		Address:         "127.0.0.1:9090",
 		DSN:             "user:password@/dbname",
-		storeInterval:   600,
-		fileStoragePath: "/custom/path/to/db.json",
-		restore:         false,
-		secretKey:       "my_secret_key",
+		StoreInterval:   600,
+		FileStoragePath: "/custom/path/to/db.json",
+		Restore:         false,
+		SecretKey:       "my_secret_key",
 	}
 
 	if !reflect.DeepEqual(config, expected) {
@@ -66,22 +66,22 @@ func TestParseFlags(t *testing.T) {
 	}
 
 	config := Config{
-		address:         defaultAddress,
+		Address:         defaultAddress,
 		DSN:             defaultDSN,
-		storeInterval:   defaultStoreInterval,
-		fileStoragePath: defaultFileStoragePath,
-		restore:         defaultRestore,
-		secretKey:       defaultSecretKey,
+		StoreInterval:   defaultStoreInterval,
+		FileStoragePath: defaultFileStoragePath,
+		Restore:         defaultRestore,
+		SecretKey:       defaultSecretKey,
 	}
 	parseFlags(&config)
 
 	expected := Config{
-		address:         "127.0.0.1:9090",
+		Address:         "127.0.0.1:9090",
 		DSN:             "user:password@/dbname",
-		storeInterval:   600,
-		fileStoragePath: "/custom/path/to/db.json",
-		restore:         false,
-		secretKey:       "my_secret_key",
+		StoreInterval:   600,
+		FileStoragePath: "/custom/path/to/db.json",
+		Restore:         false,
+		SecretKey:       "my_secret_key",
 	}
 
 	if !reflect.DeepEqual(config, expected) {
@@ -104,11 +104,11 @@ func TestGetConfig(t *testing.T) {
 	// Mock command-line arguments
 	os.Args = []string{
 		"cmd",
-		"-a", "127.0.0.1:8082", // Flag overrides environment variable for address
+		"-a", "127.0.0.1:8082", // Flag overrides environment variable for Address
 		"-d", "user:password@/testdb", // Flag overrides environment variable for DSN
 		"-i", "1000", // Flag overrides environment variable for store interval
 		"-f", "/another/path/to/db.json", // Flag overrides environment variable for file storage path
-		"-r=false",              // Flag overrides environment variable for restore
+		"-r=false",              // Flag overrides environment variable for Restore
 		"-k", "override_secret", // Flag overrides environment variable for secret key
 	}
 
@@ -117,12 +117,12 @@ func TestGetConfig(t *testing.T) {
 
 	// Expected config after combining environment variables and flags
 	expected := Config{
-		address:         "127.0.0.1:8082",           // Flag overrides env
+		Address:         "127.0.0.1:8082",           // Flag overrides env
 		DSN:             "user:password@/testdb",    // Flag overrides env
-		storeInterval:   1000,                       // Flag overrides env
-		fileStoragePath: "/another/path/to/db.json", // Flag overrides env
-		restore:         false,                      // Flag overrides env
-		secretKey:       "override_secret",          // Flag overrides env
+		StoreInterval:   1000,                       // Flag overrides env
+		FileStoragePath: "/another/path/to/db.json", // Flag overrides env
+		Restore:         false,                      // Flag overrides env
+		SecretKey:       "override_secret",          // Flag overrides env
 	}
 
 	// Clean up the environment variables after the test
